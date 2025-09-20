@@ -16,7 +16,7 @@ const DEFAULT_TIMEZONE_OFFSET_HOURS: i32 = 8;
 const DEFAULT_GEOIP_DB_PATH: &str = "./resources/geoip2-cn.mmdb";
 
 /// Global timezone configuration
-/// 
+///
 /// This can be configured via environment variable CORTEX_TIMEZONE_OFFSET_HOURS
 /// Default is +8 (Asia/Shanghai)
 pub static TIMEZONE: Lazy<FixedOffset> = Lazy::new(|| {
@@ -24,7 +24,7 @@ pub static TIMEZONE: Lazy<FixedOffset> = Lazy::new(|| {
         .ok()
         .and_then(|s| s.parse::<i32>().ok())
         .unwrap_or(DEFAULT_TIMEZONE_OFFSET_HOURS);
-    
+
     FixedOffset::east_opt(offset_hours * 3600)
         .unwrap_or_else(|| FixedOffset::east_opt(DEFAULT_TIMEZONE_OFFSET_HOURS * 3600).unwrap())
 });
@@ -35,7 +35,7 @@ pub fn get_timezone() -> FixedOffset {
 }
 
 /// Get the GeoIP database path
-/// 
+///
 /// This can be configured via environment variable CORTEX_GEOIP_DB_PATH
 /// Default path points to the project's resources directory
 pub fn get_geoip_db_path() -> Option<String> {
@@ -45,37 +45,39 @@ pub fn get_geoip_db_path() -> Option<String> {
             return Some(path);
         }
     }
-    
+
     // Try to resolve the default path relative to the current working directory
     let default_path = PathBuf::from(DEFAULT_GEOIP_DB_PATH);
-    
+
     // Check if the default path exists
     if default_path.exists() {
         return default_path.to_str().map(|s| s.to_string());
     }
-    
+
     // Try alternative paths for different execution contexts
     let alternative_paths = [
-        "../resources/geoip2-cn.mmdb",                      // From target directory
-        "../../resources/geoip2-cn.mmdb",                   // From nested directories
-        "./easytier-bridge/resources/geoip2-cn.mmdb",      // From cortex-core root
-        "../easytier-bridge/resources/geoip2-cn.mmdb",     // From cortex-core subdirectory
-        "../../easytier-bridge/resources/geoip2-cn.mmdb",  // From deeper nested directories
+        "../resources/geoip2-cn.mmdb",                 // From target directory
+        "../../resources/geoip2-cn.mmdb",              // From nested directories
+        "./easytier-bridge/resources/geoip2-cn.mmdb",  // From cortex-core root
+        "../easytier-bridge/resources/geoip2-cn.mmdb", // From cortex-core subdirectory
+        "../../easytier-bridge/resources/geoip2-cn.mmdb", // From deeper nested directories
     ];
-    
+
     for alt_path in &alternative_paths {
         let path = PathBuf::from(alt_path);
         if path.exists() {
             return path.to_str().map(|s| s.to_string());
         }
     }
-    
+
     // If no path found, return None to disable GeoIP
     None
 }
 
 /// Convert UTC timestamp to configured timezone
-pub fn utc_to_local_timezone(utc_timestamp: chrono::DateTime<chrono::Utc>) -> chrono::DateTime<FixedOffset> {
+pub fn utc_to_local_timezone(
+    utc_timestamp: chrono::DateTime<chrono::Utc>,
+) -> chrono::DateTime<FixedOffset> {
     utc_timestamp.with_timezone(&get_timezone())
 }
 
@@ -85,7 +87,7 @@ pub fn now_in_timezone() -> chrono::DateTime<FixedOffset> {
 }
 
 /// Get the database URL for MySQL connection
-/// 
+///
 /// This can be configured via environment variable CORTEX_DATABASE_URL
 /// Default is mysql://root:root@localhost:3306/cortex
 pub fn get_database_url() -> Option<String> {
@@ -95,7 +97,7 @@ pub fn get_database_url() -> Option<String> {
             return Some(url);
         }
     }
-    
+
     // Return default URL
     Some(DEFAULT_DATABASE_URL.to_string())
 }
@@ -114,7 +116,7 @@ mod tests {
             .ok()
             .and_then(|s| s.parse::<i32>().ok())
             .unwrap_or(DEFAULT_TIMEZONE_OFFSET_HOURS);
-        
+
         assert_eq!(tz.local_minus_utc(), expected_offset_hours * 3600);
     }
 
@@ -122,28 +124,31 @@ mod tests {
     fn test_utc_to_local_conversion() {
         let utc_time = Utc::now();
         let local_time = utc_to_local_timezone(utc_time);
-        
+
         // Get expected offset from environment or default
         let expected_offset_hours = env::var("CORTEX_TIMEZONE_OFFSET_HOURS")
             .ok()
             .and_then(|s| s.parse::<i32>().ok())
             .unwrap_or(DEFAULT_TIMEZONE_OFFSET_HOURS);
         let expected_offset = expected_offset_hours * 3600;
-        
+
         assert_eq!(local_time.offset().local_minus_utc(), expected_offset);
     }
 
     #[test]
     fn test_now_in_timezone() {
         let local_now = now_in_timezone();
-        
+
         // Get expected offset from environment or default
         let expected_offset_hours = env::var("CORTEX_TIMEZONE_OFFSET_HOURS")
             .ok()
             .and_then(|s| s.parse::<i32>().ok())
             .unwrap_or(DEFAULT_TIMEZONE_OFFSET_HOURS);
-        
-        assert_eq!(local_now.offset().local_minus_utc(), expected_offset_hours * 3600);
+
+        assert_eq!(
+            local_now.offset().local_minus_utc(),
+            expected_offset_hours * 3600
+        );
     }
 
     #[test]
@@ -151,12 +156,15 @@ mod tests {
         // Test that timezone can be configured via environment variable
         // This test verifies the configuration mechanism works
         let tz = get_timezone();
-        
+
         // The timezone should be valid (between -12 and +14 hours)
         let offset_seconds = tz.local_minus_utc();
         let offset_hours = offset_seconds / 3600;
-        
-        assert!(offset_hours >= -12 && offset_hours <= 14, 
-                "Timezone offset {} hours is out of valid range [-12, +14]", offset_hours);
+
+        assert!(
+            offset_hours >= -12 && offset_hours <= 14,
+            "Timezone offset {} hours is out of valid range [-12, +14]",
+            offset_hours
+        );
     }
 }

@@ -4,16 +4,15 @@
 //! It combines both core EasyTier functionality and web client management capabilities.
 //! Additionally, it provides C FFI interfaces for integration with cortex-core.
 
-use std::sync::Mutex;
-use std::ffi::{CStr, CString, c_char, c_int};
+use std::ffi::{c_char, c_int, CStr, CString};
 use std::ptr;
-
+use std::sync::Mutex;
 
 // Core functionality modules
+mod easytier_core_ffi;
+mod easytier_web_client;
 mod logging;
 mod stun_wrapper;
-mod easytier_web_client;
-mod easytier_core_ffi;
 
 // Test modules
 #[cfg(test)]
@@ -23,11 +22,11 @@ mod launcher_test;
 #[cfg(feature = "web")]
 pub mod client_manager;
 #[cfg(feature = "web")]
-pub mod db;
-#[cfg(feature = "web")]
 pub mod config;
 #[cfg(feature = "web")]
 pub mod config_srv;
+#[cfg(feature = "web")]
+pub mod db;
 #[cfg(feature = "web")]
 pub mod network_config_srv_ffi;
 
@@ -36,38 +35,32 @@ pub use logging::*;
 
 // Re-export core functionality
 pub use easytier_web_client::{
-    cortex_start_web_client,
+    cortex_get_web_client_network_info, cortex_list_web_client_instances, cortex_start_web_client,
     cortex_stop_web_client,
-    cortex_get_web_client_network_info,
-    cortex_list_web_client_instances
 };
 
 // Re-export core FFI functionality
-pub use easytier_core_ffi::{
-    start_easytier_core,
-    stop_easytier_core,
-    EasyTierCoreConfig
-};
+pub use easytier_core_ffi::{start_easytier_core, stop_easytier_core, EasyTierCoreConfig};
 
 pub use stun_wrapper::MockStunInfoCollectorWrapper;
 
 // Re-export web functionality (conditional)
 #[cfg(feature = "web")]
 pub use client_manager::{
-    ClientManager,
-    session::{Session, Location},
+    session::{Location, Session},
     storage::{Storage, StorageToken},
+    ClientManager,
 };
 
 #[cfg(feature = "web")]
-pub use db::{Database, entities};
+pub use db::{entities, Database};
 
 #[cfg(feature = "web")]
 pub use network_config_srv_ffi::*;
 
 // Global state management
-use std::collections::HashMap;
 use easytier::launcher::NetworkInstance;
+use std::collections::HashMap;
 
 // Core instances storage for FFI
 static CLIENT_INSTANCES: once_cell::sync::Lazy<Mutex<HashMap<String, NetworkInstance>>> =
@@ -164,7 +157,11 @@ pub extern "C" fn cortex_free_instance_list(instances: *const *const c_char, cou
                     let _ = CString::from_raw(instance_ptr as *mut c_char);
                 }
             }
-            let _ = Vec::from_raw_parts(instances as *mut *const c_char, count as usize, count as usize);
+            let _ = Vec::from_raw_parts(
+                instances as *mut *const c_char,
+                count as usize,
+                count as usize,
+            );
         }
     }
 }
@@ -183,7 +180,7 @@ pub extern "C" fn cortex_core_set_and_init_console_logging(
         Ok(s) => s,
         Err(_) => return -1,
     };
-    
+
     set_and_init_console_logging(&level_str, &module_str);
     0
 }
@@ -206,7 +203,7 @@ pub extern "C" fn cortex_core_set_and_init_file_logging(
         Ok(s) => s,
         Err(_) => return -1,
     };
-    
+
     let _ = set_and_init_file_logging(&level_str, &module_str, &path_str);
     0
 }
@@ -222,17 +219,19 @@ pub extern "C" fn cortex_web_set_and_init_console_logging(
         eprintln!("[RUST ERROR] cortex_web_set_and_init_console_logging: null parameter");
         return -1;
     }
-    
+
     let level_str = unsafe {
         match CStr::from_ptr(level).to_str() {
             Ok(s) => s,
             Err(_) => {
-                eprintln!("[RUST ERROR] cortex_web_set_and_init_console_logging: invalid UTF-8 in level");
+                eprintln!(
+                    "[RUST ERROR] cortex_web_set_and_init_console_logging: invalid UTF-8 in level"
+                );
                 return -1;
             }
         }
     };
-    
+
     let module_str = unsafe {
         match CStr::from_ptr(module_name).to_str() {
             Ok(s) => s,
@@ -242,7 +241,7 @@ pub extern "C" fn cortex_web_set_and_init_console_logging(
             }
         }
     };
-    
+
     set_and_init_console_logging(level_str, module_str);
     0
 }
@@ -258,17 +257,19 @@ pub extern "C" fn cortex_web_set_and_init_file_logging(
         eprintln!("[RUST ERROR] cortex_web_set_and_init_file_logging: null parameter");
         return -1;
     }
-    
+
     let level_str = unsafe {
         match CStr::from_ptr(level).to_str() {
             Ok(s) => s,
             Err(_) => {
-                eprintln!("[RUST ERROR] cortex_web_set_and_init_file_logging: invalid UTF-8 in level");
+                eprintln!(
+                    "[RUST ERROR] cortex_web_set_and_init_file_logging: invalid UTF-8 in level"
+                );
                 return -1;
             }
         }
     };
-    
+
     let module_str = unsafe {
         match CStr::from_ptr(module_name).to_str() {
             Ok(s) => s,
@@ -278,17 +279,19 @@ pub extern "C" fn cortex_web_set_and_init_file_logging(
             }
         }
     };
-    
+
     let path_str = unsafe {
         match CStr::from_ptr(log_path).to_str() {
             Ok(s) => s,
             Err(_) => {
-                eprintln!("[RUST ERROR] cortex_web_set_and_init_file_logging: invalid UTF-8 in log_path");
+                eprintln!(
+                    "[RUST ERROR] cortex_web_set_and_init_file_logging: invalid UTF-8 in log_path"
+                );
                 return -1;
             }
         }
     };
-    
+
     let _ = set_and_init_file_logging(level_str, module_str, path_str);
     0
 }

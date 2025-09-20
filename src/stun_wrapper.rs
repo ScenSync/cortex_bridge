@@ -1,14 +1,14 @@
 //! STUN 包装模块
-//! 
+//!
 //! 该模块提供了对 easytier::common::stun::MockStunInfoCollector 的包装，
 //! 使用 Deref 和 DerefMut 特性实现对私有 NatType 类型的透明访问。
 
-use std::ops::{Deref, DerefMut};
-use std::net::SocketAddr;
 use async_trait::async_trait;
+use easytier::common::error::Error;
 use easytier::common::stun::{MockStunInfoCollector, StunInfoCollectorTrait};
 use easytier::proto::common::{NatType, StunInfo};
-use easytier::common::error::Error;
+use std::net::SocketAddr;
+use std::ops::{Deref, DerefMut};
 
 /// MockStunInfoCollectorWrapper 是对 MockStunInfoCollector 的包装
 /// 通过实现 Deref 和 DerefMut 特性，允许透明访问内部的 MockStunInfoCollector

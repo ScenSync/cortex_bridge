@@ -17,23 +17,22 @@ targets = [
 db-path = "~/.cargo/advisory-db"
 # The url(s) of the advisory databases to use
 db-urls = ["https://github.com/rustsec/advisory-db"]
-# The lint level for security vulnerabilities
-vulnerability = "deny"
 # The lint level for unmaintained crates
-unmaintained = "warn"
+unmaintained = "workspace"
 # The lint level for crates that have been yanked from their source registry
 yanked = "warn"
-# The lint level for crates with security notices
-notice = "warn"
 # A list of advisory IDs to ignore
 ignore = [
-    # Add specific advisory IDs here if needed
+    # RSA timing sidechannel vulnerability - no safe upgrade available yet
+    "RUSTSEC-2023-0071",
+    # atty potential unaligned read - no safe upgrade available, used by cbindgen
+    "RUSTSEC-2021-0145",
 ]
 
 [licenses]
-# The confidence threshold for detecting a license from a license text.
+# The confidence threshold for detecting a license from a license text
 confidence-threshold = 0.8
-# List of explicitly allowed licenses
+# Allow 1 or more licenses
 allow = [
     "MIT",
     "Apache-2.0",
@@ -43,20 +42,24 @@ allow = [
     "ISC",
     "Unicode-DFS-2016",
     "CC0-1.0",
+    "WTFPL",
+    "Unicode-3.0",
+    "CDLA-Permissive-2.0",
+    "LGPL-3.0-only", # For easytier dependency
+    "Zlib", # For zlib-rs dependency
+    "0BSD", # For managed and smoltcp dependencies
+    "MPL-2.0", # For cbindgen dependency
+    "bzip2-1.0.6", # For libbz2-rs-sys dependency
 ]
-# List of explicitly disallowed licenses
-deny = [
-    "GPL-2.0",
-    "GPL-3.0",
-    "AGPL-1.0",
-    "AGPL-3.0",
+# Clarify licenses for specific crates that don't have license in Cargo.toml
+clarify = [
+    { crate = "easytier", expression = "LGPL-3.0-only", license-files = [
+        { path = "LICENSE", hash = 0xdb3c2abe }
+    ] },
+    { crate = "easytier-rpc-build", expression = "LGPL-3.0-only", license-files = [
+        { path = "LICENSE", hash = 0xe3a994d8 }
+    ] }
 ]
-# Lint level for when multiple versions of the same license are detected
-copyleft = "warn"
-# Confidence threshold for detecting a license from a license text
-allow-osi-fsf-free = "both"
-# List of allowed licenses for dependencies
-default = "deny"
 
 [bans]
 # Lint level for when multiple versions of the same crate are detected

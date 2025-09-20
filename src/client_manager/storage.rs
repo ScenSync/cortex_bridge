@@ -13,8 +13,8 @@ use crate::db::{Database, OrgIdInDb};
 pub struct StorageToken {
     pub token: String,
     pub client_url: url::Url,
-    pub device_id: Uuid,  // Changed from machine_id to device_id to align with cortex-core Device model
-    pub organization_id: OrgIdInDb,  // Changed from user_id to organization_id to align with cortex-core Organization model
+    pub device_id: Uuid, // Changed from machine_id to device_id to align with cortex-core Device model
+    pub organization_id: OrgIdInDb, // Changed from user_id to organization_id to align with cortex-core Organization model
 }
 
 #[derive(Debug, Clone)]
@@ -59,9 +59,7 @@ impl Storage {
         device_id: &uuid::Uuid,
         client_url: &url::Url,
     ) {
-        map.remove_if(&device_id, |_, v| {
-            v.storage_token.client_url == *client_url
-        });
+        map.remove_if(&device_id, |_, v| v.storage_token.client_url == *client_url);
     }
 
     fn update_device_to_client_info_map(
@@ -114,11 +112,14 @@ impl Storage {
         organization_id: &OrgIdInDb,
         device_id: &uuid::Uuid,
     ) -> Option<url::Url> {
-        self.0.org_clients_map.get(organization_id).and_then(|info_map| {
-            info_map
-                .get(device_id)
-                .map(|info| info.storage_token.client_url.clone())
-        })
+        self.0
+            .org_clients_map
+            .get(organization_id)
+            .and_then(|info_map| {
+                info_map
+                    .get(device_id)
+                    .map(|info| info.storage_token.client_url.clone())
+            })
     }
 
     pub fn list_organization_clients(&self, organization_id: &OrgIdInDb) -> Vec<url::Url> {
@@ -138,4 +139,3 @@ impl Storage {
         &self.0.db
     }
 }
-

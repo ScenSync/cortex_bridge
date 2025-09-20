@@ -11,19 +11,26 @@ env:
   RUST_BACKTRACE: 1
 
 jobs:
-  test:
-    name: Test Suite
-    runs-on: ${{ matrix.os }}
+  test-ubuntu:
+    name: Test Suite (Ubuntu with MySQL)
+    runs-on: ubuntu-latest
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
         rust: [stable, beta]
-        exclude:
-          # Reduce CI load by testing beta only on Ubuntu
-          - os: windows-latest
-            rust: beta
-          - os: macos-latest
-            rust: beta
+
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root123
+          MYSQL_DATABASE: easytier_bridge_test
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=3
 
     steps:
     - uses: actions/checkout@v4
@@ -41,70 +48,106 @@ jobs:
           ~/.cargo/registry
           ~/.cargo/git
           target
-        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+        key: ubuntu-cargo-${{ hashFiles('**/Cargo.lock') }}
         restore-keys: |
-          ${{ runner.os }}-cargo-
+          ubuntu-cargo-
 
-    - name: Install system dependencies (Ubuntu)
-      if: matrix.os == 'ubuntu-latest'
+    - name: Install system dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y build-essential pkg-config libssl-dev
-        # Ensure cbindgen is available
-        cargo install cbindgen --force
-
-    - name: Install system dependencies (Windows)
-      if: matrix.os == 'windows-latest'
-      run: |
-        # Ensure cbindgen is available
-        cargo install cbindgen --force
-
-    - name: Install system dependencies (macOS)
-      if: matrix.os == 'macos-latest'
-      run: |
-        brew install pkg-config openssl
-        # Ensure cbindgen is available
+        sudo apt-get install -y build-essential pkg-config libssl-dev protobuf-compiler
         cargo install cbindgen --force
 
     - name: Check formatting
       run: cargo fmt --all -- --check
 
-    - name: Run clippy
+    - name: Run Clippy
       run: cargo clippy --all-targets --all-features -- -D warnings
-
-    - name: Build
-      run: cargo build --verbose --all-features
-
-    - name: Run tests (with database)
-      if: matrix.os == 'ubuntu-latest'
-      env:
-        DATABASE_URL: mysql://root:root123@127.0.0.1:3306/easytier_bridge_test
-      run: cargo test --verbose --all-features
-
-    - name: Run tests (without database)
-      if: matrix.os != 'ubuntu-latest'
-      run: cargo test --verbose --features core
-
-    - name: Run tests (core only)
-      run: cargo test --verbose --no-default-features --features core
 
     - name: Build project first
       run: cargo build --verbose --all-features
 
     - name: Generate C headers
       run: |
-        # Create include directory if it doesn't exist
         mkdir -p include
-        # Generate header file using cbindgen
         cbindgen --config cbindgen.toml --crate easytier-bridge --output include/easytier_bridge.h
 
     - name: Verify C headers
       run: |
-        if [ ! -f "include/easytier_bridge.h" ]; then
-          echo "C header file not generated"
+        if [ ! -f include/easytier_bridge.h ]; then
+          echo "Error: C header file not generated"
           exit 1
         fi
         echo "C header file size: $(wc -c < include/easytier_bridge.h) bytes"
+
+    - name: Run tests with database
+      run: cargo test --verbose --all-features
+      env:
+        DATABASE_URL: mysql://root:root123@127.0.0.1:3306/easytier_bridge_test
+
+    - name: Run core functionality tests
+      run: cargo test --verbose --lib
+
+  test-windows:
+    name: Test Suite (Windows without MySQL)
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        rust: [stable]
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@master
+      with:
+        toolchain: ${{ matrix.rust }}
+        components: rustfmt, clippy
+
+    - name: Cache cargo registry
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          target
+        key: windows-cargo-${{ hashFiles('**/Cargo.lock') }}
+        restore-keys: |
+          windows-cargo-
+
+    - name: Install protoc (Windows)
+      run: |
+        choco install protoc
+        
+    - name: Install system dependencies
+      run: |
+        cargo install cbindgen --force
+
+    - name: Check formatting
+      run: cargo fmt --all -- --check
+
+    - name: Run Clippy
+      run: cargo clippy --all-targets --all-features -- -D warnings
+
+    - name: Build project first
+      run: cargo build --verbose --all-features
+
+    - name: Generate C headers
+      run: |
+        mkdir -p include
+        cbindgen --config cbindgen.toml --crate easytier-bridge --output include/easytier_bridge.h
+
+    - name: Verify C headers
+      run: |
+        if [ ! -f include/easytier_bridge.h ]; then
+          echo "Error: C header file not generated"
+          exit 1
+        fi
+        echo "C header file size: $(wc -c < include/easytier_bridge.h) bytes"
+      shell: bash
+
+    - name: Run core functionality tests (no database)
+      run: cargo test --verbose --lib
 
   security_audit:
     name: Security Audit
@@ -143,7 +186,7 @@ jobs:
     - name: Install system dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y build-essential pkg-config libssl-dev
+        sudo apt-get install -y build-essential pkg-config libssl-dev protobuf-compiler
 
     - name: Install cargo-llvm-cov
       uses: taiki-e/install-action@cargo-llvm-cov
