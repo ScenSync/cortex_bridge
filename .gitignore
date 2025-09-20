@@ -164,7 +164,7 @@ cortex-core/main
 cortex-core/server
 
 # ignore header files since they are generated
-easytier-bridge/include/*.h
+include/*.h
 
 # frontend deploy temp
 deploy_temp

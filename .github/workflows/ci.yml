@@ -64,11 +64,21 @@ jobs:
       run: |
         sudo apt-get update
         sudo apt-get install -y build-essential pkg-config libssl-dev
+        # Ensure cbindgen is available
+        cargo install cbindgen --force
+
+    - name: Install system dependencies (Windows)
+      if: matrix.os == 'windows-latest'
+      run: |
+        # Ensure cbindgen is available
+        cargo install cbindgen --force
 
     - name: Install system dependencies (macOS)
       if: matrix.os == 'macos-latest'
       run: |
         brew install pkg-config openssl
+        # Ensure cbindgen is available
+        cargo install cbindgen --force
 
     - name: Check formatting
       run: cargo fmt --all -- --check
@@ -92,10 +102,15 @@ jobs:
     - name: Run tests (core only)
       run: cargo test --verbose --no-default-features --features core
 
-    - name: Build C headers
+    - name: Build project first
+      run: cargo build --verbose --all-features
+
+    - name: Generate C headers
       run: |
-        chmod +x build_headers.sh
-        ./build_headers.sh
+        # Create include directory if it doesn't exist
+        mkdir -p include
+        # Generate header file using cbindgen
+        cbindgen --config cbindgen.toml --crate easytier-bridge --output include/easytier_bridge.h
 
     - name: Verify C headers
       run: |
@@ -103,6 +118,7 @@ jobs:
           echo "C header file not generated"
           exit 1
         fi
+        echo "C header file size: $(wc -c < include/easytier_bridge.h) bytes"
 
   security_audit:
     name: Security Audit
