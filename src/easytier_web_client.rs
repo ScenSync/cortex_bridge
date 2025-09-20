@@ -17,12 +17,12 @@ type WebClientInstance = (Arc<WebClient>, tokio::runtime::Runtime);
 type WebClientMap = HashMap<String, WebClientInstance>;
 
 // Global storage for web client instances
-static WEB_CLIENT_INSTANCES: Lazy<Mutex<WebClientMap>> = 
+static WEB_CLIENT_INSTANCES: Lazy<Mutex<WebClientMap>> =
     once_cell::sync::Lazy::new(|| Mutex::new(HashMap::new()));
 
 /// Create and start a web client instance that connects to a configuration server
 /// Returns 0 on success, -1 on error
-/// 
+///
 /// # Safety
 /// This function is unsafe because it dereferences a raw pointer (`client_config`).
 /// The caller must ensure that:
@@ -206,7 +206,7 @@ pub extern "C" fn cortex_stop_web_client(instance_name: *const c_char) -> c_int 
 /// Get network information for a web client instance
 /// Returns 0 on success, -1 on error
 /// The caller must free the returned CortexNetworkInfo using cortex_free_network_info
-/// 
+///
 /// # Safety
 /// This function is unsafe because it dereferences raw pointers (`instance_name` and `info`).
 /// The caller must ensure that:
@@ -327,7 +327,7 @@ pub unsafe extern "C" fn cortex_get_web_client_network_info(
         route_count: route_count as c_int,
     });
 
-        *info = Box::into_raw(network_info);
+    *info = Box::into_raw(network_info);
 
     info!(
         "cortex_get_web_client_network_info: Successfully created network info for instance: {}",
@@ -339,7 +339,7 @@ pub unsafe extern "C" fn cortex_get_web_client_network_info(
 /// List all active web client instances
 /// Returns the number of instances, -1 on error
 /// The caller must free the returned array using cortex_free_instance_list
-/// 
+///
 /// # Safety
 /// This function is unsafe because it dereferences raw pointers (`instances`).
 /// The caller must ensure that:

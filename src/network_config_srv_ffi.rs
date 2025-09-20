@@ -12,8 +12,9 @@ use crate::db::OrgIdInDb;
 use easytier::launcher::NetworkConfig;
 
 // 全局 NetworkConfigService 单例
-static NETWORK_CONFIG_SERVICE: Lazy<tokio::sync::Mutex<Option<Arc<tokio::sync::Mutex<NetworkConfigService>>>>> =
-    Lazy::new(|| tokio::sync::Mutex::new(None));
+static NETWORK_CONFIG_SERVICE: Lazy<
+    tokio::sync::Mutex<Option<Arc<tokio::sync::Mutex<NetworkConfigService>>>>,
+> = Lazy::new(|| tokio::sync::Mutex::new(None));
 
 // 全局 tokio runtime 管理器
 struct RuntimeManager {
@@ -155,9 +156,10 @@ pub unsafe extern "C" fn create_network_config_service_singleton(
             Ok(service) => service,
             Err(e) => {
                 if !err_msg.is_null() {
-                    *err_msg = CString::new(format!("Failed to create NetworkConfigService: {:?}", e))
-                        .unwrap_or_default()
-                        .into_raw();
+                    *err_msg =
+                        CString::new(format!("Failed to create NetworkConfigService: {:?}", e))
+                            .unwrap_or_default()
+                            .into_raw();
                 }
                 return false;
             }
@@ -348,7 +350,9 @@ pub unsafe extern "C" fn network_config_service_collect_one_network_info(
     // 调用收集网络信息方法
     match runtime_manager.block_on(async {
         let service_guard = service.lock().await;
-        service_guard.collect_one_network_info(&org_id, &device_id, &inst_id).await
+        service_guard
+            .collect_one_network_info(&org_id, &device_id, &inst_id)
+            .await
     }) {
         Ok(info) => {
             if !result_json_out.is_null() {
@@ -472,7 +476,9 @@ pub unsafe extern "C" fn network_config_service_collect_network_info(
     // 调用收集网络信息方法
     match runtime_manager.block_on(async {
         let service_guard = service.lock().await;
-        service_guard.collect_network_info(&org_id, &device_id, inst_ids).await
+        service_guard
+            .collect_network_info(&org_id, &device_id, inst_ids)
+            .await
     }) {
         Ok(info) => {
             if !result_json_out.is_null() {
@@ -552,7 +558,9 @@ pub unsafe extern "C" fn network_config_service_list_network_instance_ids(
     // 调用列出网络实例ID方法
     match runtime_manager.block_on(async {
         let service_guard = service.lock().await;
-        service_guard.list_network_instance_ids(&org_id, &device_id).await
+        service_guard
+            .list_network_instance_ids(&org_id, &device_id)
+            .await
     }) {
         Ok(ids) => {
             if !result_json_out.is_null() {
@@ -640,7 +648,9 @@ pub unsafe extern "C" fn network_config_service_remove_network_instance(
     // 调用删除网络实例方法
     match runtime_manager.block_on(async {
         let service_guard = service.lock().await;
-        service_guard.remove_network_instance(&org_id, &device_id, &inst_id).await
+        service_guard
+            .remove_network_instance(&org_id, &device_id, &inst_id)
+            .await
     }) {
         Ok(_) => true,
         Err(e) => {
@@ -779,7 +789,9 @@ pub unsafe extern "C" fn network_config_service_update_network_state(
     // 调用更新网络状态方法
     match runtime_manager.block_on(async {
         let service_guard = service.lock().await;
-        service_guard.update_network_state(&org_id, &device_id, &inst_id, disabled).await
+        service_guard
+            .update_network_state(&org_id, &device_id, &inst_id, disabled)
+            .await
     }) {
         Ok(_) => true,
         Err(e) => {
@@ -888,9 +900,7 @@ unsafe fn parse_uuid(uuid_str: *const c_char, err_msg: *mut *mut c_char) -> Opti
         }
     } else {
         if !err_msg.is_null() {
-            *err_msg = CString::new("UUID is null")
-                .unwrap_or_default()
-                .into_raw();
+            *err_msg = CString::new("UUID is null").unwrap_or_default().into_raw();
         }
         None
     }
@@ -989,7 +999,9 @@ pub unsafe extern "C" fn network_config_service_validate_config(
     // 调用验证配置方法
     match runtime_manager.block_on(async {
         let service_guard = service.lock().await;
-        service_guard.validate_config(&org_id, &device_id, config).await
+        service_guard
+            .validate_config(&org_id, &device_id, config)
+            .await
     }) {
         Ok(_) => true,
         Err(e) => {
@@ -1056,7 +1068,9 @@ pub unsafe extern "C" fn network_config_service_run_network_instance(
     // 调用运行网络实例方法
     match runtime_manager.block_on(async {
         let service_guard = service.lock().await;
-        service_guard.run_network_instance(&org_id, &device_id, config).await
+        service_guard
+            .run_network_instance(&org_id, &device_id, config)
+            .await
     }) {
         Ok(inst_id) => {
             if !inst_id_out.is_null() {

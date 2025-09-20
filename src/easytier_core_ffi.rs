@@ -50,9 +50,9 @@ pub struct EasyTierCoreConfig {
 
 /// Create and start an EasyTier core instance
 /// Returns 0 on success, -1 on error
-/// 
+///
 /// # Safety
-/// 
+///
 /// This function is unsafe because it dereferences a raw pointer (`core_config`).
 /// The caller must ensure that:
 /// - `core_config` is a valid pointer to a properly initialized `EasyTierCoreConfig` struct
