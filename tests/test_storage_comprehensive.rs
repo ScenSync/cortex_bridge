@@ -6,7 +6,6 @@
 use easytier_bridge::client_manager::storage::{Storage, StorageToken};
 use std::sync::Arc;
 use std::sync::Once;
-use tracing_subscriber;
 use url::Url;
 use uuid::Uuid;
 

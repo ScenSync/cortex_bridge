@@ -634,7 +634,7 @@ async fn test_heartbeat_multiple_udp_clients() {
         // Wait for heartbeat to be available
         let mut heartbeat_available = false;
         for _ in 0..30 {
-            if let Some(_) = client_manager.get_heartbeat_requests(&client_url).await {
+            if (client_manager.get_heartbeat_requests(client_url).await).is_some() {
                 heartbeat_available = true;
                 break;
             }
@@ -643,7 +643,7 @@ async fn test_heartbeat_multiple_udp_clients() {
 
         if heartbeat_available {
             let heartbeat_req = client_manager
-                .get_heartbeat_requests(&client_url)
+                .get_heartbeat_requests(client_url)
                 .await
                 .unwrap();
             heartbeat_count += 1;

@@ -162,7 +162,7 @@ mod tests {
         let offset_hours = offset_seconds / 3600;
 
         assert!(
-            offset_hours >= -12 && offset_hours <= 14,
+            (-12..=14).contains(&offset_hours),
             "Timezone offset {} hours is out of valid range [-12, +14]",
             offset_hours
         );

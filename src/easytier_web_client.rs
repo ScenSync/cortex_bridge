@@ -7,30 +7,37 @@ use easytier::common::global_ctx::GlobalCtx;
 use easytier::connector::create_connector_by_url;
 use easytier::tunnel::IpVersion;
 use easytier::web_client::WebClient;
-use gethostname;
 use once_cell::sync::Lazy;
 use std::collections::HashMap;
 use std::ffi::{c_char, c_int, CString};
 use std::sync::{Arc, Mutex};
-use tokio;
-use url;
+
+// Type alias to reduce complexity
+type WebClientInstance = (Arc<WebClient>, tokio::runtime::Runtime);
+type WebClientMap = HashMap<String, WebClientInstance>;
 
 // Global storage for web client instances
-static WEB_CLIENT_INSTANCES: Lazy<
-    Mutex<HashMap<String, (Arc<WebClient>, tokio::runtime::Runtime)>>,
-> = once_cell::sync::Lazy::new(|| Mutex::new(HashMap::new()));
+static WEB_CLIENT_INSTANCES: Lazy<Mutex<WebClientMap>> = 
+    once_cell::sync::Lazy::new(|| Mutex::new(HashMap::new()));
 
 /// Create and start a web client instance that connects to a configuration server
 /// Returns 0 on success, -1 on error
+/// 
+/// # Safety
+/// This function is unsafe because it dereferences a raw pointer (`client_config`).
+/// The caller must ensure that:
+/// - `client_config` is a valid, non-null pointer to a properly initialized `CortexWebClient`
+/// - The `CortexWebClient` struct and all its string fields remain valid for the duration of this call
+/// - The pointer is properly aligned and points to a valid memory location
 #[no_mangle]
-pub extern "C" fn cortex_start_web_client(client_config: *const CortexWebClient) -> c_int {
+pub unsafe extern "C" fn cortex_start_web_client(client_config: *const CortexWebClient) -> c_int {
     if client_config.is_null() {
         error!("cortex_start_web_client: client_config is null");
         set_error_msg("client_config is null");
         return -1;
     }
 
-    let config = unsafe { &*client_config };
+    let config = &*client_config;
     debug!("cortex_start_web_client: Starting web client configuration parsing");
 
     // Parse configuration parameters
@@ -199,8 +206,15 @@ pub extern "C" fn cortex_stop_web_client(instance_name: *const c_char) -> c_int 
 /// Get network information for a web client instance
 /// Returns 0 on success, -1 on error
 /// The caller must free the returned CortexNetworkInfo using cortex_free_network_info
+/// 
+/// # Safety
+/// This function is unsafe because it dereferences raw pointers (`instance_name` and `info`).
+/// The caller must ensure that:
+/// - `instance_name` is a valid, non-null pointer to a null-terminated C string
+/// - `info` is a valid, non-null pointer to a mutable pointer that can be written to
+/// - Both pointers are properly aligned and point to valid memory locations
 #[no_mangle]
-pub extern "C" fn cortex_get_web_client_network_info(
+pub unsafe extern "C" fn cortex_get_web_client_network_info(
     instance_name: *const c_char,
     info: *mut *const CortexNetworkInfo,
 ) -> c_int {
@@ -313,9 +327,7 @@ pub extern "C" fn cortex_get_web_client_network_info(
         route_count: route_count as c_int,
     });
 
-    unsafe {
         *info = Box::into_raw(network_info);
-    }
 
     info!(
         "cortex_get_web_client_network_info: Successfully created network info for instance: {}",
@@ -327,8 +339,15 @@ pub extern "C" fn cortex_get_web_client_network_info(
 /// List all active web client instances
 /// Returns the number of instances, -1 on error
 /// The caller must free the returned array using cortex_free_instance_list
+/// 
+/// # Safety
+/// This function is unsafe because it dereferences raw pointers (`instances`).
+/// The caller must ensure that:
+/// - `instances` is a valid, non-null pointer to a mutable pointer that can be written to
+/// - The pointer is properly aligned and points to a valid memory location
+/// - The caller properly manages the memory of the returned array
 #[no_mangle]
-pub extern "C" fn cortex_list_web_client_instances(
+pub unsafe extern "C" fn cortex_list_web_client_instances(
     instances: *mut *const *const c_char,
     max_count: c_int,
 ) -> c_int {
@@ -342,23 +361,19 @@ pub extern "C" fn cortex_list_web_client_instances(
 
     let count = std::cmp::min(instance_names.len(), max_count as usize);
     if count == 0 {
-        unsafe {
-            *instances = std::ptr::null();
-        }
+        *instances = std::ptr::null();
         return 0;
     }
 
     // Allocate array of C strings
     let mut c_strings = Vec::with_capacity(count);
-    for i in 0..count {
-        c_strings.push(match CString::new(instance_names[i].clone()) {
+    for (i, instance_name) in instance_names.iter().enumerate() {
+        c_strings.push(match CString::new(instance_name.clone()) {
             Ok(s) => s.into_raw(),
             Err(_) => {
                 // Free previously allocated strings
-                for j in 0..i {
-                    unsafe {
-                        let _ = CString::from_raw(c_strings[j]);
-                    }
+                for c_string in c_strings.iter().take(i) {
+                    let _ = CString::from_raw(*c_string);
                 }
                 set_error_msg("failed to convert instance name to C string");
                 return -1;
@@ -367,10 +382,8 @@ pub extern "C" fn cortex_list_web_client_instances(
     }
 
     let c_array = c_strings.into_boxed_slice();
-    unsafe {
-        *instances = c_array.as_ptr() as *const *const c_char;
-        std::mem::forget(c_array); // Prevent deallocation
-    }
+    *instances = c_array.as_ptr() as *const *const c_char;
+    std::mem::forget(c_array); // Prevent deallocation
 
     count as c_int
 }
@@ -391,7 +404,7 @@ mod tests {
 
         // Note: This test would require a mock server or would fail in real environment
         // In a real test environment, you'd want to mock the network calls
-        let result = cortex_start_web_client(&config);
+        let result = unsafe { cortex_start_web_client(&config) };
 
         // Clean up if instance was created
         if result == 0 {

@@ -42,7 +42,7 @@ impl TryFrom<WeakRefStorage> for Storage {
     type Error = ();
 
     fn try_from(weak: WeakRefStorage) -> Result<Self, Self::Error> {
-        weak.upgrade().map(|inner| Storage(inner)).ok_or(())
+        weak.upgrade().map(Storage).ok_or(())
     }
 }
 
@@ -59,7 +59,7 @@ impl Storage {
         device_id: &uuid::Uuid,
         client_url: &url::Url,
     ) {
-        map.remove_if(&device_id, |_, v| v.storage_token.client_url == *client_url);
+        map.remove_if(device_id, |_, v| v.storage_token.client_url == *client_url);
     }
 
     fn update_device_to_client_info_map(

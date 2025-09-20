@@ -96,7 +96,7 @@ fn load_geoip_db(geoip_db: Option<String>) -> Option<maxminddb::Reader<Vec<u8>>>
         match maxminddb::Reader::open_readfile(&path) {
             Ok(reader) => {
                 crate::info!("[GEOIP] Successfully loaded GeoIP2 database from: {}", path);
-                return Some(reader);
+                Some(reader)
             }
             Err(err) => {
                 crate::warn!(
@@ -210,7 +210,7 @@ impl ClientManager {
 
         // Use provided path or auto-detect from configuration
         #[cfg(feature = "web")]
-        let geoip_path = geoip_db.or_else(|| crate::config::get_geoip_db_path());
+        let geoip_path = geoip_db.or_else(crate::config::get_geoip_db_path);
 
         let manager = ClientManager {
             tasks,
@@ -350,7 +350,7 @@ impl ClientManager {
 
         let c_url = self
             .storage
-            .get_client_url_by_device_id(&organization_id.to_string(), &device_id)?;
+            .get_client_url_by_device_id(&organization_id.to_string(), device_id)?;
 
         let parsed_url = c_url;
         let session = self

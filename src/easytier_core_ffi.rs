@@ -50,15 +50,23 @@ pub struct EasyTierCoreConfig {
 
 /// Create and start an EasyTier core instance
 /// Returns 0 on success, -1 on error
+/// 
+/// # Safety
+/// 
+/// This function is unsafe because it dereferences a raw pointer (`core_config`).
+/// The caller must ensure that:
+/// - `core_config` is a valid pointer to a properly initialized `EasyTierCoreConfig` struct
+/// - The `EasyTierCoreConfig` struct and all its string fields remain valid for the duration of this function call
+/// - All C string pointers within the config struct point to valid, null-terminated strings
 #[no_mangle]
-pub extern "C" fn start_easytier_core(core_config: *const EasyTierCoreConfig) -> c_int {
+pub unsafe extern "C" fn start_easytier_core(core_config: *const EasyTierCoreConfig) -> c_int {
     if core_config.is_null() {
         error!("start_easytier_core: core_config is null");
         set_error_msg("core_config is null");
         return -1;
     }
 
-    let config = unsafe { &*core_config };
+    let config = &*core_config;
     debug!("start_easytier_core: Starting core configuration parsing");
 
     // Parse basic configuration
@@ -109,20 +117,11 @@ pub extern "C" fn start_easytier_core(core_config: *const EasyTierCoreConfig) ->
     };
 
     // Parse optional IP addresses
-    let ipv4 = match c_str_to_string(config.ipv4) {
-        Ok(ip) => ip,
-        Err(_) => String::new(),
-    };
+    let ipv4 = c_str_to_string(config.ipv4).unwrap_or_default();
 
-    let ipv6 = match c_str_to_string(config.ipv6) {
-        Ok(ip) => ip,
-        Err(_) => String::new(),
-    };
+    let ipv6 = c_str_to_string(config.ipv6).unwrap_or_default();
 
-    let dev_name = match c_str_to_string(config.dev_name) {
-        Ok(name) => name,
-        Err(_) => String::new(),
-    };
+    let dev_name = c_str_to_string(config.dev_name).unwrap_or_default();
 
     let default_protocol = match c_str_to_string(config.default_protocol) {
         Ok(protocol) => protocol,

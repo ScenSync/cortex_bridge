@@ -148,6 +148,7 @@ pub extern "C" fn cortex_core_free_string(s: *const c_char) {
 }
 
 #[no_mangle]
+#[allow(clippy::not_unsafe_ptr_arg_deref)]
 pub extern "C" fn cortex_free_instance_list(instances: *const *const c_char, count: c_int) {
     if !instances.is_null() && count > 0 {
         unsafe {
@@ -211,6 +212,7 @@ pub extern "C" fn cortex_core_set_and_init_file_logging(
 // Web-specific FFI functions (conditional compilation)
 #[cfg(feature = "web")]
 #[no_mangle]
+#[allow(clippy::not_unsafe_ptr_arg_deref)]
 pub extern "C" fn cortex_web_set_and_init_console_logging(
     level: *const c_char,
     module_name: *const c_char,
@@ -248,6 +250,7 @@ pub extern "C" fn cortex_web_set_and_init_console_logging(
 
 #[cfg(feature = "web")]
 #[no_mangle]
+#[allow(clippy::not_unsafe_ptr_arg_deref)]
 pub extern "C" fn cortex_web_set_and_init_file_logging(
     level: *const c_char,
     module_name: *const c_char,
@@ -292,8 +295,13 @@ pub extern "C" fn cortex_web_set_and_init_file_logging(
         }
     };
 
-    let _ = set_and_init_file_logging(level_str, module_str, path_str);
-    0
+    match set_and_init_file_logging(level_str, module_str, path_str) {
+        Ok(_) => 0,
+        Err(e) => {
+            eprintln!("[RUST ERROR] cortex_web_set_and_init_file_logging: {}", e);
+            -1
+        }
+    }
 }
 
 // Panic recovery functions
@@ -334,6 +342,7 @@ pub extern "C" fn cortex_web_init_panic_recovery() {
 
 #[cfg(feature = "web")]
 #[no_mangle]
+#[allow(clippy::not_unsafe_ptr_arg_deref)]
 pub extern "C" fn cortex_easytier_web_free_string(ptr: *mut c_char) {
     if !ptr.is_null() {
         unsafe {
@@ -351,6 +360,9 @@ mod tests {
 
     #[test]
     fn test_version() {
-        assert!(!VERSION.is_empty());
+        #[allow(clippy::const_is_empty)]
+        {
+            assert!(!VERSION.is_empty());
+        }
     }
 }

@@ -1,6 +1,5 @@
 #[cfg(test)]
 mod tests {
-    use super::*;
     use easytier::common::config::TomlConfigLoader;
     use easytier::launcher::{ConfigSource, NetworkInstance};
 
@@ -31,7 +30,7 @@ mod tests {
             .expect("Failed to parse test configuration");
 
         // Create NetworkInstance
-        let mut instance = NetworkInstance::new(cfg, ConfigSource::FFI);
+        let _instance = NetworkInstance::new(cfg, ConfigSource::FFI);
 
         // Test that we can create the instance without errors
         // Note: We don't actually start it in tests to avoid system dependencies

@@ -102,7 +102,6 @@ impl SessionRpcService {
 
         let device_id: uuid::Uuid = req
             .machine_id
-            .clone()
             .map(Into::into)
             .ok_or(anyhow::anyhow!(
                 "Device id is not set correctly, expect uuid but got: {:?}",
@@ -646,7 +645,7 @@ impl Session {
 
         // 关闭 RPC 管理器 - 使用 stop 方法而不是 shutdown
         if self.rpc_mgr.is_running() {
-            let _ = self.rpc_mgr.stop();
+            std::mem::drop(self.rpc_mgr.stop());
             crate::debug!("[SESSION] Stopped RPC manager");
         }
 

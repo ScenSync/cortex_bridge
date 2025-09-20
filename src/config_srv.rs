@@ -162,7 +162,7 @@ impl NetworkConfigService {
             .await
             .map_err(convert_rpc_error)?;
 
-        let inst_id: uuid::Uuid = resp.inst_id.clone().unwrap_or_default().into();
+        let inst_id: uuid::Uuid = resp.inst_id.unwrap_or_default().into();
 
         let db = self.client_mgr.db().await;
         // Direct database operation - update device network config
@@ -438,10 +438,10 @@ impl NetworkConfigService {
                 .await?;
 
             let Some(device) = device else {
-                return Err(anyhow::anyhow!("Device with network config not found").into());
+                return Err(anyhow::anyhow!("Device with network config not found"));
             };
 
-            let mut active_model: devices::ActiveModel = device.clone().into();
+            let mut active_model: devices::ActiveModel = device.into();
             active_model.network_disabled = Set(Some(disabled));
 
             active_model.update(db.orm()).await?

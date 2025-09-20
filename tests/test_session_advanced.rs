@@ -203,7 +203,7 @@ async fn test_heartbeat_request_creation() {
     };
 
     let heartbeat_request = HeartbeatRequest {
-        machine_id: Some(proto_uuid.clone()),
+        machine_id: Some(proto_uuid),
         inst_id: None,
         user_token: user_token.clone(),
         easytier_version: "test_version".to_string(),
