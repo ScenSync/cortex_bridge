@@ -1,0 +1,85 @@
+[package]
+name = "easytier-bridge"
+version = "0.1.0"
+edition = "2021"
+authors = ["Cortex Team"]
+description = "Unified EasyTier integration for Cortex - Core and Web functionality"
+license = "MIT"
+
+[lib]
+name = "easytier_bridge"
+crate-type = ["staticlib", "rlib"]
+
+[features]
+default = ["core", "web"]
+core = []
+web = ["websocket", "database"]
+websocket = []
+database = ["sea-orm", "sea-orm-migration"]
+
+[dependencies]
+# EasyTier integration - 核心依赖 (使用 GitHub 依赖) - Updated to latest version
+easytier = { git = "https://github.com/EasyTier/EasyTier", tag = "v2.4.2"}
+
+# Core async runtime
+tokio = { version = "1.0", features = ["full"] }
+async-trait = "0.1"
+
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# Utilities
+uuid = { version = "1.0", features = ["v4"] }
+once_cell = "1.19"
+dashmap = "5.5"
+url = "2.5"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+tracing-appender = "0.2"
+chrono = { version = "0.4", features = ["serde"] }
+anyhow = "1.0"
+thiserror = "1.0"
+
+# Core-specific dependencies
+gethostname = "0.4.3"
+
+# Web-specific dependencies
+maxminddb = "0.24"
+urlencoding = "2.1"
+axum = { version = "0.7", features = ["macros"], optional = true }
+axum-messages = { version = "0.7.0", optional = true }
+axum-embed = { version = "0.1.0", optional = true }
+
+# Database dependencies (web-specific)
+sea-orm = { version = "0.12", features = ["sqlx-mysql", "runtime-tokio-rustls", "macros"], optional = true }
+sea-orm-migration = { version = "0.12", optional = true }
+
+# FFI dependencies
+libc = "0.2"
+
+[dev-dependencies]
+# Testing dependencies
+tokio-test = "0.4"
+mockall = "0.12"
+serial_test = "3.0"
+tempfile = "3.8"
+once_cell = "1.19"
+tracing-test = "0.2"
+# Database testing
+sea-orm = { version = "0.12", features = ["mock", "sqlx-mysql", "runtime-tokio-rustls", "macros"] }
+
+[build-dependencies]
+cbindgen = "0.26"
+
+# 编译优化配置
+[profile.dev]
+opt-level = 1
+incremental = true
+codegen-units = 256
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+panic = "abort"
