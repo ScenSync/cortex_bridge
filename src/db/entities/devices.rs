@@ -20,41 +20,47 @@ pub enum DeviceType {
 #[sea_orm(rs_type = "String", db_type = "Enum", enum_name = "device_status")]
 pub enum DeviceStatus {
     #[sea_orm(string_value = "pending")]
-    Pending,        // Newly connected, awaiting admin approval
+    Pending, // Newly connected, awaiting admin approval
     #[sea_orm(string_value = "approved")]
-    Approved,       // Approved by admin, can join networks
+    Approved, // Approved by admin, can join networks
     #[sea_orm(string_value = "rejected")]
-    Rejected,       // Rejected by admin, blocked from networks
+    Rejected, // Rejected by admin, blocked from networks
     #[sea_orm(string_value = "available")]
-    Available,      // Legacy status - approved and currently available
+    Available, // Legacy status - approved and currently available
     #[sea_orm(string_value = "busy")]
-    Busy,          // Legacy status - approved but currently busy
+    Busy, // Legacy status - approved but currently busy
     #[sea_orm(string_value = "maintenance")]
-    Maintenance,    // Legacy status - approved but in maintenance
+    Maintenance, // Legacy status - approved but in maintenance
     #[sea_orm(string_value = "offline")]
-    Offline,       // Device disconnected (updated by heartbeat timeout)
+    Offline, // Device disconnected (updated by heartbeat timeout)
     #[sea_orm(string_value = "connecting")]
-    Connecting,    // Legacy status - transitional state
+    Connecting, // Legacy status - transitional state
     #[sea_orm(string_value = "network_error")]
-    NetworkError,  // Legacy status - network issues
+    NetworkError, // Legacy status - network issues
 }
 
 impl DeviceStatus {
     /// Check if device is approved (can participate in networks)
     pub fn is_approved(&self) -> bool {
-        matches!(self, DeviceStatus::Approved | DeviceStatus::Available | DeviceStatus::Busy | DeviceStatus::Maintenance)
+        matches!(
+            self,
+            DeviceStatus::Approved
+                | DeviceStatus::Available
+                | DeviceStatus::Busy
+                | DeviceStatus::Maintenance
+        )
     }
-    
+
     /// Check if device is pending approval
     pub fn is_pending(&self) -> bool {
         matches!(self, DeviceStatus::Pending)
     }
-    
+
     /// Check if device is rejected
     pub fn is_rejected(&self) -> bool {
         matches!(self, DeviceStatus::Rejected)
     }
-    
+
     /// Check if device is online (has recent heartbeat)
     pub fn is_online(&self) -> bool {
         !matches!(self, DeviceStatus::Offline)
@@ -67,59 +73,59 @@ impl DeviceStatus {
 pub struct Model {
     #[sea_orm(primary_key, auto_increment = false, column_type = "Char(Some(36))")]
     pub id: String,
-    
+
     #[sea_orm(column_type = "Text")]
     pub name: String,
-    
+
     #[sea_orm(unique, column_type = "Text")]
     pub serial_number: String,
-    
+
     pub device_type: DeviceType,
-    
+
     #[sea_orm(column_type = "Text", nullable)]
     pub model: Option<String>,
-    
+
     #[sea_orm(default_value = "offline")]
     pub status: DeviceStatus,
-    
+
     #[sea_orm(column_type = "Json", nullable)]
     pub capabilities: Option<serde_json::Value>,
-    
+
     #[sea_orm(column_type = "Char(Some(36))", nullable)]
     pub organization_id: Option<String>,
-    
+
     #[sea_orm(nullable)]
     pub scenario_id: Option<u32>,
-    
+
     pub last_heartbeat: Option<DateTimeWithTimeZone>,
-    
+
     // Robot-specific fields (only when device_type is robot)
     #[sea_orm(column_type = "Char(Some(36))", nullable)]
     pub robot_type_id: Option<String>,
-    
+
     // Network configuration fields (merged from user_running_network_configs)
     #[sea_orm(unique, column_type = "Char(Some(36))", nullable)]
     pub network_instance_id: Option<String>,
-    
+
     #[sea_orm(column_type = "Json", nullable)]
     pub network_config: Option<serde_json::Value>,
-    
+
     #[sea_orm(default_value = false, nullable)]
     pub network_disabled: Option<bool>,
-    
+
     #[sea_orm(nullable)]
     pub network_create_time: Option<DateTimeWithTimeZone>,
-    
+
     #[sea_orm(nullable)]
     pub network_update_time: Option<DateTimeWithTimeZone>,
-    
+
     // Virtual IP fields (extracted from network info)
     #[sea_orm(nullable)]
     pub virtual_ip: Option<u32>,
-    
+
     #[sea_orm(nullable)]
     pub virtual_ip_network_length: Option<u8>,
-    
+
     pub created_at: DateTimeWithTimeZone,
     pub updated_at: DateTimeWithTimeZone,
 }
@@ -149,23 +155,23 @@ impl Model {
     pub fn is_robot(&self) -> bool {
         self.device_type == DeviceType::Robot
     }
-    
+
     /// Check if device is an edge device
     pub fn is_edge(&self) -> bool {
         self.device_type == DeviceType::Edge
     }
-    
+
     /// Check if device has network configuration
     pub fn has_network_config(&self) -> bool {
         self.network_instance_id.is_some() && self.network_config.is_some()
     }
-    
+
     /// Get network configuration info
     pub fn get_network_config(&self) -> Option<NetworkConfigInfo> {
         if !self.has_network_config() {
             return None;
         }
-        
+
         Some(NetworkConfigInfo {
             instance_id: self.network_instance_id.clone().unwrap(),
             config: self.network_config.as_ref().unwrap().to_string(),

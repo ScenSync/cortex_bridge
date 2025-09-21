@@ -1,8 +1,7 @@
 #[cfg(test)]
 mod tests {
-    use super::*;
     use easytier::common::config::TomlConfigLoader;
-    use easytier::launcher::{NetworkInstance, ConfigSource};
+    use easytier::launcher::{ConfigSource, NetworkInstance};
 
     #[tokio::test]
     async fn test_private_mode_launcher() {
@@ -31,12 +30,12 @@ mod tests {
             .expect("Failed to parse test configuration");
 
         // Create NetworkInstance
-        let mut instance = NetworkInstance::new(cfg, ConfigSource::FFI);
+        let _instance = NetworkInstance::new(cfg, ConfigSource::FFI);
 
         // Test that we can create the instance without errors
         // Note: We don't actually start it in tests to avoid system dependencies
         println!("NetworkInstance created successfully for private mode");
-        
+
         // In a real scenario, you would call:
         // let _event_subscriber = instance.start().expect("Failed to start instance");
         // But we skip this in tests to avoid requiring actual network setup
@@ -69,7 +68,7 @@ mod tests {
             .expect("Failed to parse generated TOML configuration");
 
         println!("TOML configuration parsed successfully");
-        
+
         // Verify we can create a NetworkInstance from it
         let _instance = NetworkInstance::new(cfg, ConfigSource::FFI);
         println!("NetworkInstance created from TOML configuration");

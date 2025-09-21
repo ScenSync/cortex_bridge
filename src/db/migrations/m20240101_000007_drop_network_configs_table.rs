@@ -73,7 +73,10 @@ impl MigrationTrait for Migration {
                     .foreign_key(
                         ForeignKey::create()
                             .name("fk_network_configs_organization_id")
-                            .from(UserRunningNetworkConfigs::Table, UserRunningNetworkConfigs::OrganizationId)
+                            .from(
+                                UserRunningNetworkConfigs::Table,
+                                UserRunningNetworkConfigs::OrganizationId,
+                            )
                             .to(Organizations::Table, Organizations::Id)
                             .on_delete(ForeignKeyAction::Cascade)
                             .on_update(ForeignKeyAction::Cascade),

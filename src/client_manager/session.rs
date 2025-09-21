@@ -9,8 +9,9 @@ use easytier::{
         rpc_impl::bidirect::BidirectRpcManager,
         rpc_types::{self, controller::BaseController},
         web::{
-            HeartbeatRequest, HeartbeatResponse, NetworkConfig, RunNetworkInstanceRequest, 
-            WebClientService, WebClientServiceClientFactory, WebServerService, WebServerServiceServer,
+            HeartbeatRequest, HeartbeatResponse, NetworkConfig, RunNetworkInstanceRequest,
+            WebClientService, WebClientServiceClientFactory, WebServerService,
+            WebServerServiceServer,
         },
     },
     tunnel::Tunnel,
@@ -88,7 +89,10 @@ impl SessionRpcService {
         &self,
         req: HeartbeatRequest,
     ) -> rpc_types::error::Result<HeartbeatResponse> {
-        crate::trace!("[SESSION_RPC] Handling heartbeat request from device_id: {:?}", req.machine_id);
+        crate::trace!(
+            "[SESSION_RPC] Handling heartbeat request from device_id: {:?}",
+            req.machine_id
+        );
         let mut data = self.data.write().await;
 
         let Ok(storage) = Storage::try_from(data.storage.clone()) else {
@@ -96,51 +100,60 @@ impl SessionRpcService {
             return Ok(HeartbeatResponse {});
         };
 
-        let device_id: uuid::Uuid =
-            req.machine_id
-                .clone()
-                .map(Into::into)
-                .ok_or(anyhow::anyhow!(
-                    "Device id is not set correctly, expect uuid but got: {:?}",
-                    req.machine_id
-                ))
-                .map_err(|e| {
-                    crate::error!("[SESSION_RPC] Failed to parse device_id: {:?}", e);
-                    e
-                })?;
+        let device_id: uuid::Uuid = req
+            .machine_id
+            .map(Into::into)
+            .ok_or(anyhow::anyhow!(
+                "Device id is not set correctly, expect uuid but got: {:?}",
+                req.machine_id
+            ))
+            .map_err(|e| {
+                crate::error!("[SESSION_RPC] Failed to parse device_id: {:?}", e);
+                e
+            })?;
 
         // The user_token field actually contains organization_id, not a user token
         // We need to verify that this organization_id exists
         let organization_id = &req.user_token;
-        
+
         // Check organization existence using direct database query
         let organization_exists = {
             use crate::db::entities::organizations;
             use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
-            
+
             let organization = organizations::Entity::find()
                 .filter(organizations::Column::Id.eq(organization_id))
                 .one(storage.db().orm())
                 .await
                 .with_context(|| {
-                    format!("Failed to check organization existence from db: {}", organization_id)
+                    format!(
+                        "Failed to check organization existence from db: {}",
+                        organization_id
+                    )
                 })
                 .map_err(|e| {
-                    crate::error!("[SESSION_RPC] Database error when checking organization existence: {:?}", e);
+                    crate::error!(
+                        "[SESSION_RPC] Database error when checking organization existence: {:?}",
+                        e
+                    );
                     e
                 })?;
-            
+
             organization.is_some()
         };
-        
+
         if !organization_exists {
             crate::warn!("[SESSION_RPC] Organization not found: {}", organization_id);
             return Err(anyhow::anyhow!("Organization not found: {}", organization_id).into());
         }
-        
+
         let organization_id = organization_id.clone();
-        
-        crate::trace!("[SESSION_RPC] Successfully resolved organization_id: {} for device_id: {}", organization_id, device_id);
+
+        crate::trace!(
+            "[SESSION_RPC] Successfully resolved organization_id: {} for device_id: {}",
+            organization_id,
+            device_id
+        );
 
         // Create or update storage token for this session
         let storage_token = StorageToken {
@@ -157,7 +170,8 @@ impl SessionRpcService {
         }
 
         // Sync device record in database on every heartbeat
-        let device_status = Self::sync_device_record(&storage, &req, &organization_id, device_id).await
+        let device_status = Self::sync_device_record(&storage, &req, &organization_id, device_id)
+            .await
             .with_context(|| format!("Failed to sync device record for device_id: {}", device_id))
             .map_err(|e| {
                 crate::error!("[SESSION_RPC] Failed to sync device record: {:?}", e);
@@ -179,7 +193,7 @@ impl SessionRpcService {
         let _ = data.notifier.send(req);
         Ok(HeartbeatResponse {})
     }
-    
+
     /// Sync device record in database, creating if not exists
     async fn sync_device_record(
         storage: &super::storage::Storage,
@@ -189,9 +203,9 @@ impl SessionRpcService {
     ) -> anyhow::Result<crate::db::entities::devices::DeviceStatus> {
         use crate::db::entities::devices;
         use sea_orm::{ActiveModelTrait, ColumnTrait, EntityTrait, QueryFilter, Set};
-        
+
         let device_id_str = device_id.to_string();
-        
+
         // Try to find existing device
         let existing = devices::Entity::find()
             .filter(devices::Column::Id.eq(&device_id_str))
@@ -199,29 +213,37 @@ impl SessionRpcService {
             .one(storage.db().orm())
             .await
             .with_context(|| format!("Failed to query device: {}", device_id_str))?;
-        
+
         match existing {
             Some(device) => {
                 // Update existing device heartbeat
                 let mut active: devices::ActiveModel = device.clone().into();
                 active.last_heartbeat = Set(Some(chrono::Utc::now().into()));
                 active.updated_at = Set(chrono::Utc::now().into());
-                
+
                 // If device is rejected, change status back to pending when it reconnects
                 let new_status = if device.status.is_rejected() {
-                    crate::info!("[SESSION_RPC] Rejected device {} reconnected, changing status to pending", device_id_str);
+                    crate::info!(
+                        "[SESSION_RPC] Rejected device {} reconnected, changing status to pending",
+                        device_id_str
+                    );
                     active.status = Set(devices::DeviceStatus::Pending);
                     devices::DeviceStatus::Pending
                 } else {
                     device.status
                 };
-                
-                active.update(storage.db().orm()).await
-                    .with_context(|| format!("Failed to update device heartbeat: {}", device_id_str))?;
-                
-                crate::debug!("[SESSION_RPC] Updated heartbeat for existing device: {}, status: {:?}", device_id_str, new_status);
+
+                active.update(storage.db().orm()).await.with_context(|| {
+                    format!("Failed to update device heartbeat: {}", device_id_str)
+                })?;
+
+                crate::debug!(
+                    "[SESSION_RPC] Updated heartbeat for existing device: {}, status: {:?}",
+                    device_id_str,
+                    new_status
+                );
                 Ok(new_status)
-            },
+            }
             None => {
                 // Create new device with pending status
                 let new_device = devices::ActiveModel {
@@ -236,11 +258,18 @@ impl SessionRpcService {
                     updated_at: Set(chrono::Utc::now().into()),
                     ..Default::default()
                 };
-                
-                new_device.insert(storage.db().orm()).await
-                    .with_context(|| format!("Failed to create device record: {}", device_id_str))?;
-                
-                crate::info!("[SESSION_RPC] Created new device record: {}, status: pending", device_id_str);
+
+                new_device
+                    .insert(storage.db().orm())
+                    .await
+                    .with_context(|| {
+                        format!("Failed to create device record: {}", device_id_str)
+                    })?;
+
+                crate::info!(
+                    "[SESSION_RPC] Created new device record: {}, status: pending",
+                    device_id_str
+                );
                 Ok(devices::DeviceStatus::Pending)
             }
         }
@@ -285,7 +314,10 @@ type SessionRpcClient = Box<dyn WebClientService<Controller = BaseController> + 
 
 impl Session {
     pub fn new(storage: WeakRefStorage, client_url: url::Url, location: Option<Location>) -> Self {
-        crate::debug!("[SESSION] Creating new session for client_url: {}", client_url);
+        crate::debug!(
+            "[SESSION] Creating new session for client_url: {}",
+            client_url
+        );
         let session_data = SessionData::new(storage, client_url, location);
         let data = Arc::new(RwLock::new(session_data));
 
@@ -309,16 +341,16 @@ impl Session {
     pub async fn serve(&mut self, tunnel: Box<dyn Tunnel>) {
         crate::info!("[SESSION] Starting to serve session with tunnel");
         self.rpc_mgr.run_with_tunnel(tunnel);
-        
+
         // 创建关闭通知通道
         let (shutdown_tx, shutdown_rx) = tokio::sync::oneshot::channel();
         self.shutdown_tx = Some(shutdown_tx);
-        
+
         // 克隆需要在异步闭包中使用的数据
         let heartbeat_waiter = self.data.read().await.heartbeat_waiter();
         let storage = self.data.read().await.storage.clone();
         let rpc_client = self.scoped_rpc_client();
-        
+
         // 启动网络任务
         self.run_network_on_start_task = Some(ScopedTask::from(tokio::spawn(async move {
             tokio::select! {
@@ -353,20 +385,29 @@ impl Session {
             }
 
             let req = req.unwrap();
-            crate::debug!("[run_network_on_start] Received heartbeat request: {:?}", req);
+            crate::debug!(
+                "[run_network_on_start] Received heartbeat request: {:?}",
+                req
+            );
             if req.machine_id.is_none() {
                 crate::warn!(?req, "Device id is not set, ignore");
                 continue;
             }
-            crate::debug!("[run_network_on_start] Processing request for machine_id: {:?}", req.machine_id);
+            crate::debug!(
+                "[run_network_on_start] Processing request for machine_id: {:?}",
+                req.machine_id
+            );
 
             let running_inst_ids = req
                 .running_network_instances
                 .iter()
                 .map(|x| x.to_string())
                 .collect::<Vec<_>>();
-            crate::debug!("[run_network_on_start] Running network instances: {:?}", running_inst_ids);
-            
+            crate::debug!(
+                "[run_network_on_start] Running network instances: {:?}",
+                running_inst_ids
+            );
+
             crate::debug!("[run_network_on_start] Attempting to get storage");
             let Ok(storage) = Storage::try_from(storage.clone()) else {
                 crate::error!("Failed to get storage");
@@ -377,12 +418,15 @@ impl Session {
             // The user_token field actually contains organization_id, not a user token
             // We need to verify that this organization_id exists
             let organization_id = &req.user_token;
-            crate::debug!("[run_network_on_start] Checking organization existence for ID: {:?}", organization_id);
-            
+            crate::debug!(
+                "[run_network_on_start] Checking organization existence for ID: {:?}",
+                organization_id
+            );
+
             let organization_exists = {
                 use crate::db::entities::organizations;
                 use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
-                
+
                 match organizations::Entity::find()
                     .filter(organizations::Column::Id.eq(organization_id))
                     .one(storage.db().orm())
@@ -390,26 +434,33 @@ impl Session {
                 {
                     Ok(organization) => {
                         let exists = organization.is_some();
-                        crate::debug!("[run_network_on_start] Organization exists check result: {}", exists);
+                        crate::debug!(
+                            "[run_network_on_start] Organization exists check result: {}",
+                            exists
+                        );
                         exists
-                    },
+                    }
                     Err(e) => {
                         crate::error!("Failed to check organization existence, error: {:?}", e);
                         return;
                     }
                 }
             };
-            
+
             if !organization_exists {
                 crate::info!("Organization not found: {:?}", organization_id);
                 return;
             }
 
-            crate::debug!("[run_network_on_start] Listing network configs for org: {:?}, machine: {:?}", organization_id, req.machine_id);
+            crate::debug!(
+                "[run_network_on_start] Listing network configs for org: {:?}, machine: {:?}",
+                organization_id,
+                req.machine_id
+            );
             let local_configs = {
                 use crate::db::entities::devices;
                 use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
-                
+
                 let device_id = req.machine_id.unwrap();
                 match devices::Entity::find()
                     .filter(devices::Column::OrganizationId.eq(organization_id))
@@ -421,12 +472,16 @@ impl Session {
                 {
                     Ok(devices) => {
                         // Filter to only approved devices
-                        let approved_devices: Vec<_> = devices.into_iter()
+                        let approved_devices: Vec<_> = devices
+                            .into_iter()
                             .filter(|device| device.status.is_approved())
                             .collect();
-                        
-                        crate::debug!("[run_network_on_start] Found {} approved devices with network configs", approved_devices.len());
-                        
+
+                        crate::debug!(
+                            "[run_network_on_start] Found {} approved devices with network configs",
+                            approved_devices.len()
+                        );
+
                         if approved_devices.is_empty() {
                             let device_status = devices::Entity::find()
                                 .filter(devices::Column::OrganizationId.eq(organization_id))
@@ -435,70 +490,102 @@ impl Session {
                                 .await
                                 .unwrap_or_default()
                                 .map(|d| d.status);
-                            
+
                             match device_status {
                                 Some(status) if status.is_pending() => {
                                     crate::info!("[run_network_on_start] Device {} is pending approval, no networks will be started", device_id);
-                                },
+                                }
                                 Some(status) if status.is_rejected() => {
                                     crate::warn!("[run_network_on_start] Device {} is rejected, no networks will be started", device_id);
-                                },
+                                }
                                 _ => {
                                     crate::debug!("[run_network_on_start] Device {} has no network configs or is not approved", device_id);
                                 }
                             }
                         }
-                        
+
                         approved_devices
-                    },
+                    }
                     Err(e) => {
-                        crate::error!("Failed to list devices with network configs, error: {:?}", e);
+                        crate::error!(
+                            "Failed to list devices with network configs, error: {:?}",
+                            e
+                        );
                         return;
                     }
                 }
             };
 
             let mut has_failed = false;
-            crate::debug!("[run_network_on_start] Starting to process {} network configs", local_configs.len());
+            crate::debug!(
+                "[run_network_on_start] Starting to process {} network configs",
+                local_configs.len()
+            );
 
             for (index, device) in local_configs.iter().enumerate() {
                 let instance_id = match &device.network_instance_id {
                     Some(id) => id,
                     None => {
-                        crate::debug!("[run_network_on_start] Device {} has no network instance ID, skipping", device.id);
+                        crate::debug!(
+                            "[run_network_on_start] Device {} has no network instance ID, skipping",
+                            device.id
+                        );
                         continue;
                     }
                 };
-                
-                crate::debug!("[run_network_on_start] Processing device {}/{}: instance_id={}", index+1, local_configs.len(), instance_id);
+
+                crate::debug!(
+                    "[run_network_on_start] Processing device {}/{}: instance_id={}",
+                    index + 1,
+                    local_configs.len(),
+                    instance_id
+                );
                 if running_inst_ids.contains(instance_id) {
-                    crate::debug!("[run_network_on_start] Instance {} is already running, skipping", instance_id);
+                    crate::debug!(
+                        "[run_network_on_start] Instance {} is already running, skipping",
+                        instance_id
+                    );
                     continue;
                 }
-                
+
                 let network_config_str = match &device.network_config {
                     Some(config) => config,
                     None => {
-                        crate::debug!("[run_network_on_start] Device {} has no network config, skipping", device.id);
+                        crate::debug!(
+                            "[run_network_on_start] Device {} has no network config, skipping",
+                            device.id
+                        );
                         continue;
                     }
                 };
-                
-                crate::debug!("[run_network_on_start] Need to start instance: {}", instance_id);
-                crate::debug!("[run_network_on_start] Parsing network config JSON for instance: {}", instance_id);
-                let network_config: NetworkConfig = match serde_json::from_value(network_config_str.clone()) {
-                    Ok(config) => {
-                        crate::debug!("[run_network_on_start] Successfully parsed network config");
-                        config
-                    },
-                    Err(e) => {
-                        crate::error!("Failed to parse network config: {:?}", e);
-                        has_failed = true;
-                        continue;
-                    }
-                };
-                
-                crate::debug!("[run_network_on_start] Calling RPC to run network instance: {}", instance_id);
+
+                crate::debug!(
+                    "[run_network_on_start] Need to start instance: {}",
+                    instance_id
+                );
+                crate::debug!(
+                    "[run_network_on_start] Parsing network config JSON for instance: {}",
+                    instance_id
+                );
+                let network_config: NetworkConfig =
+                    match serde_json::from_value(network_config_str.clone()) {
+                        Ok(config) => {
+                            crate::debug!(
+                                "[run_network_on_start] Successfully parsed network config"
+                            );
+                            config
+                        }
+                        Err(e) => {
+                            crate::error!("Failed to parse network config: {:?}", e);
+                            has_failed = true;
+                            continue;
+                        }
+                    };
+
+                crate::debug!(
+                    "[run_network_on_start] Calling RPC to run network instance: {}",
+                    instance_id
+                );
                 let ret = rpc_client
                     .run_network_instance(
                         BaseController::default(),
@@ -508,7 +595,11 @@ impl Session {
                         },
                     )
                     .await;
-                crate::debug!("[run_network_on_start] RPC call result for instance {}: {:?}", instance_id, ret);
+                crate::debug!(
+                    "[run_network_on_start] RPC call result for instance {}: {:?}",
+                    instance_id,
+                    ret
+                );
                 crate::info!(
                     organization_id = %organization_id,
                     "Run network instance: {:?}, user_token: {:?}",
@@ -521,7 +612,9 @@ impl Session {
 
             if !has_failed {
                 crate::info!(?req, "All network instances are running");
-                crate::debug!("[run_network_on_start] All instances started successfully, exiting loop");
+                crate::debug!(
+                    "[run_network_on_start] All instances started successfully, exiting loop"
+                );
                 break;
             } else {
                 crate::debug!("[run_network_on_start] Some instances failed to start, will retry on next heartbeat");
@@ -533,29 +626,29 @@ impl Session {
     pub fn is_running(&self) -> bool {
         self.rpc_mgr.is_running()
     }
-    
+
     /// 显式关闭会话及其相关资源
     pub async fn shutdown(&mut self) {
         crate::info!("[SESSION] Explicitly shutting down session");
-        
+
         // 发送关闭信号
         if let Some(tx) = self.shutdown_tx.take() {
             let _ = tx.send(());
             crate::debug!("[SESSION] Sent shutdown signal to session task");
         }
-        
+
         // 等待任务完成
         if let Some(task) = self.run_network_on_start_task.take() {
             task.abort();
             crate::debug!("[SESSION] Aborted network start task");
         }
-        
+
         // 关闭 RPC 管理器 - 使用 stop 方法而不是 shutdown
         if self.rpc_mgr.is_running() {
-            let _ = self.rpc_mgr.stop();
+            std::mem::drop(self.rpc_mgr.stop());
             crate::debug!("[SESSION] Stopped RPC manager");
         }
-        
+
         crate::info!("[SESSION] Session shutdown completed");
     }
 
@@ -577,7 +670,7 @@ impl Session {
 
     pub async fn get_heartbeat_req(&self) -> Option<HeartbeatRequest> {
         self.data.read().await.req()
-    }  
+    }
 
     /// Run network instance
     pub async fn run_network_instance(
@@ -585,9 +678,8 @@ impl Session {
         req: RunNetworkInstanceRequest,
     ) -> Result<(), anyhow::Error> {
         crate::debug!("[SESSION] Starting to run network instance");
-        
-        let client = self
-            .scoped_rpc_client();
+
+        let client = self.scoped_rpc_client();
 
         let ret = client
             .run_network_instance(BaseController::default(), req)
@@ -606,10 +698,12 @@ impl Session {
         &mut self,
         network_instance_id: String,
     ) -> Result<(), anyhow::Error> {
-        crate::debug!("[SESSION] Stopping network instance: {}", network_instance_id);
-        
-        let client = self
-            .scoped_rpc_client();
+        crate::debug!(
+            "[SESSION] Stopping network instance: {}",
+            network_instance_id
+        );
+
+        let client = self.scoped_rpc_client();
 
         // Note: Using list_network_instance as stop method may not be available
         let ret = client
@@ -619,11 +713,19 @@ impl Session {
             )
             .await
             .map_err(|e| {
-                crate::error!("[SESSION] Failed to stop network instance {}: {:?}", network_instance_id, e);
+                crate::error!(
+                    "[SESSION] Failed to stop network instance {}: {:?}",
+                    network_instance_id,
+                    e
+                );
                 e
             })?;
 
-        crate::info!("[SESSION] Stop network instance {} result: {:?}", network_instance_id, ret);
+        crate::info!(
+            "[SESSION] Stop network instance {} result: {:?}",
+            network_instance_id,
+            ret
+        );
         Ok(())
     }
 
@@ -632,9 +734,8 @@ impl Session {
         &self,
     ) -> Result<easytier::proto::web::ListNetworkInstanceResponse, anyhow::Error> {
         crate::trace!("[SESSION] Listing network instances");
-        
-        let client = self
-            .scoped_rpc_client();
+
+        let client = self.scoped_rpc_client();
 
         let ret = client
             .list_network_instance(
@@ -647,7 +748,10 @@ impl Session {
                 e
             })?;
 
-        crate::debug!("[SESSION] Successfully listed {} network instances", ret.inst_ids.len());
+        crate::debug!(
+            "[SESSION] Successfully listed {} network instances",
+            ret.inst_ids.len()
+        );
         Ok(ret)
     }
 }

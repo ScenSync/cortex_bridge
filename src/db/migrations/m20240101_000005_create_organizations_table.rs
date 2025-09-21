@@ -24,21 +24,9 @@ impl MigrationTrait for Migration {
                             .string_len(255)
                             .not_null(),
                     )
-                    .col(
-                        ColumnDef::new(Organizations::Code)
-                            .string_len(100)
-                            .null(),
-                    )
-                    .col(
-                        ColumnDef::new(Organizations::Description)
-                            .text()
-                            .null(),
-                    )
-                    .col(
-                        ColumnDef::new(Organizations::ContactInfo)
-                            .json()
-                            .null(),
-                    )
+                    .col(ColumnDef::new(Organizations::Code).string_len(100).null())
+                    .col(ColumnDef::new(Organizations::Description).text().null())
+                    .col(ColumnDef::new(Organizations::ContactInfo).json().null())
                     .col(
                         ColumnDef::new(Organizations::Status)
                             .string_len(50)

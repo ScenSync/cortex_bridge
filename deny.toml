@@ -1,0 +1,97 @@
+# Configuration for cargo-deny
+# https://embarkstudios.github.io/cargo-deny/
+
+[graph]
+# If 1 or more target triples are specified, only the packages for those
+# target triples will be included in the graph
+targets = [
+    "x86_64-unknown-linux-gnu",
+    "x86_64-pc-windows-msvc",
+    "x86_64-apple-darwin",
+    "aarch64-apple-darwin",
+    "aarch64-unknown-linux-gnu",
+]
+
+[advisories]
+# The path where the advisory database is cloned/fetched into
+db-path = "~/.cargo/advisory-db"
+# The url(s) of the advisory databases to use
+db-urls = ["https://github.com/rustsec/advisory-db"]
+# The lint level for unmaintained crates
+unmaintained = "workspace"
+# The lint level for crates that have been yanked from their source registry
+yanked = "warn"
+# A list of advisory IDs to ignore
+ignore = [
+    # RSA timing sidechannel vulnerability - no safe upgrade available yet
+    "RUSTSEC-2023-0071",
+    # atty potential unaligned read - no safe upgrade available, used by cbindgen
+    "RUSTSEC-2021-0145",
+]
+
+[licenses]
+# The confidence threshold for detecting a license from a license text
+confidence-threshold = 0.8
+# Allow 1 or more licenses
+allow = [
+    "MIT",
+    "Apache-2.0",
+    "Apache-2.0 WITH LLVM-exception",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "ISC",
+    "Unicode-DFS-2016",
+    "CC0-1.0",
+    "WTFPL",
+    "Unicode-3.0",
+    "CDLA-Permissive-2.0",
+    "LGPL-3.0-only", # For easytier dependency
+    "Zlib", # For zlib-rs dependency
+    "0BSD", # For managed and smoltcp dependencies
+    "MPL-2.0", # For cbindgen dependency
+    "bzip2-1.0.6", # For libbz2-rs-sys dependency
+]
+# Clarify licenses for specific crates that don't have license in Cargo.toml
+clarify = [
+    { crate = "easytier", expression = "LGPL-3.0-only", license-files = [
+        { path = "LICENSE", hash = 0xdb3c2abe }
+    ] },
+    { crate = "easytier-rpc-build", expression = "LGPL-3.0-only", license-files = [
+        { path = "LICENSE", hash = 0xe3a994d8 }
+    ] }
+]
+
+[bans]
+# Lint level for when multiple versions of the same crate are detected
+multiple-versions = "warn"
+# Lint level for when a crate version requirement is `*`
+wildcards = "allow"
+# The graph highlighting used when creating dotgraphs for crates
+highlight = "all"
+# List of crates that are allowed
+allow = []
+# List of crates to deny
+deny = [
+    # Deny old versions of openssl due to security issues
+    { name = "openssl", version = "<0.10" },
+    # Deny old versions of tokio due to security issues
+    { name = "tokio", version = "<1.0" },
+]
+# Certain crates/versions that will be skipped when doing duplicate detection
+skip = []
+# Similarly to `skip` allows you to skip certain crates from being checked
+skip-tree = []
+
+[sources]
+# Lint level for what to happen when a crate from a crate registry that is
+# not in the allow list is encountered
+unknown-registry = "warn"
+# Lint level for what to happen when a crate from a git repository that is not
+# in the allow list is encountered
+unknown-git = "warn"
+# List of allowed registries
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]
+# List of allowed Git repositories
+allow-git = [
+    "https://github.com/EasyTier/EasyTier",
+]
