@@ -232,7 +232,7 @@ pub fn init_file_logging(
                 config.module_name, log_dir.display(), config.log_level
             );
 
-            info!("[RUST] File logging successfully initialized for module: {} in directory: {} with level: {} (no rotation)t ", config.module_name, log_dir.display(), config.log_level);
+            info!("[RUST] File logging successfully initialized for module: {} in directory: {} with level: {} (no rotation)", config.module_name, log_dir.display(), config.log_level);
 
             Ok(())
         });
