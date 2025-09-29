@@ -12,6 +12,10 @@ use tokio;
 mod common;
 use common::*;
 
+use easytier_bridge::client_manager::{ClientManager, session::Session};
+use easytier::proto::web::HeartbeatRequest;
+use chrono::Utc;
+
 #[tokio::test]
 #[serial]
 async fn test_device_status_preservation_on_heartbeat() {
@@ -24,7 +28,7 @@ async fn test_device_status_preservation_on_heartbeat() {
     let client_url = test_client_url();
     
     {
-        use crate::db::entities::devices;
+        use easytier_bridge::db::entities::devices;
         use sea_orm::{ActiveModelTrait, Set};
         use chrono::Utc;
         
@@ -65,7 +69,7 @@ async fn test_device_status_preservation_on_heartbeat() {
     
     // Test that heartbeat preserves approved status
     {
-        use crate::db::entities::devices;
+        use easytier_bridge::db::entities::devices;
         use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
         
         // Verify device still has approved status after heartbeat
@@ -80,7 +84,7 @@ async fn test_device_status_preservation_on_heartbeat() {
         assert!(device.last_heartbeat.is_some());
     }
     
-    cleanup_test_database(test_name).await.unwrap();
+    cleanup_test_database(&db).await.unwrap();
 }
 
 #[tokio::test]
@@ -95,7 +99,7 @@ async fn test_device_status_transition_rejected_to_pending() {
     let client_url = test_client_url();
     
     {
-        use crate::db::entities::devices;
+        use easytier_bridge::db::entities::devices;
         use sea_orm::{ActiveModelTrait, Set};
         use chrono::Utc;
         
@@ -136,7 +140,7 @@ async fn test_device_status_transition_rejected_to_pending() {
     
     // Test that heartbeat transitions rejected device to pending
     {
-        use crate::db::entities::devices;
+        use easytier_bridge::db::entities::devices;
         use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
         
         // Verify device transitioned from rejected to pending
@@ -151,7 +155,7 @@ async fn test_device_status_transition_rejected_to_pending() {
         assert!(device.last_heartbeat.is_some());
     }
     
-    cleanup_test_database(test_name).await.unwrap();
+    cleanup_test_database(&db).await.unwrap();
 }
 
 #[tokio::test]
@@ -166,7 +170,7 @@ async fn test_device_status_transition_offline_to_approved() {
     let client_url = test_client_url();
     
     {
-        use crate::db::entities::devices;
+        use easytier_bridge::db::entities::devices;
         use sea_orm::{ActiveModelTrait, Set};
         use chrono::Utc;
         
@@ -207,7 +211,7 @@ async fn test_device_status_transition_offline_to_approved() {
     
     // Test that heartbeat transitions offline device to approved
     {
-        use crate::db::entities::devices;
+        use easytier_bridge::db::entities::devices;
         use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
         
         // Verify device transitioned from offline to approved
@@ -222,7 +226,7 @@ async fn test_device_status_transition_offline_to_approved() {
         assert!(device.last_heartbeat.is_some());
     }
     
-    cleanup_test_database(test_name).await.unwrap();
+    cleanup_test_database(&db).await.unwrap();
 }
 
 #[tokio::test]
@@ -237,7 +241,7 @@ async fn test_device_timeout_marking_offline() {
     let device_id_2 = uuid::Uuid::new_v4();
     
     {
-        use crate::db::entities::devices;
+        use easytier_bridge::db::entities::devices;
         use sea_orm::{ActiveModelTrait, Set};
         use chrono::Utc;
         
@@ -285,7 +289,7 @@ async fn test_device_timeout_marking_offline() {
     
     // Test that only the old device was marked offline
     {
-        use crate::db::entities::devices;
+        use easytier_bridge::db::entities::devices;
         use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
         
         // Check device 1 (recent heartbeat) - should still be approved
@@ -312,7 +316,7 @@ async fn test_device_timeout_marking_offline() {
         assert!(device2.last_heartbeat.unwrap() < Utc::now() - chrono::Duration::seconds(60));
     }
     
-    cleanup_test_database(test_name).await.unwrap();
+    cleanup_test_database(&db).await.unwrap();
 }
 
 #[tokio::test]
@@ -346,7 +350,7 @@ async fn test_new_device_creation_with_pending_status() {
     
     // Test that new device is created with pending status
     {
-        use crate::db::entities::devices;
+        use easytier_bridge::db::entities::devices;
         use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
         
         // Verify new device was created with pending status
@@ -364,7 +368,7 @@ async fn test_new_device_creation_with_pending_status() {
         assert!(device.last_heartbeat.is_some());
     }
     
-    cleanup_test_database(test_name).await.unwrap();
+    cleanup_test_database(&db).await.unwrap();
 }
 
 #[tokio::test]
@@ -378,7 +382,7 @@ async fn test_device_status_preservation_during_edit() {
     let device_id = test_device_id();
     
     {
-        use crate::db::entities::devices;
+        use easytier_bridge::db::entities::devices;
         use sea_orm::{ActiveModelTrait, Set};
         use chrono::Utc;
         
@@ -400,7 +404,7 @@ async fn test_device_status_preservation_during_edit() {
     
     // Simulate device edit (like from frontend) - update name but NOT status
     {
-        use crate::db::entities::devices;
+        use easytier_bridge::db::entities::devices;
         use sea_orm::{ActiveModelTrait, ColumnTrait, EntityTrait, QueryFilter, Set};
         
         let mut device = devices::Entity::find()
@@ -419,7 +423,7 @@ async fn test_device_status_preservation_during_edit() {
     
     // Verify that status was preserved during edit
     {
-        use crate::db::entities::devices;
+        use easytier_bridge::db::entities::devices;
         use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
         
         let device = devices::Entity::find()
@@ -434,7 +438,7 @@ async fn test_device_status_preservation_during_edit() {
         assert_eq!(device.name, "Updated Name"); // Name should be updated
     }
     
-    cleanup_test_database(test_name).await.unwrap();
+    cleanup_test_database(&db).await.unwrap();
 }
 
 #[tokio::test]
@@ -444,7 +448,7 @@ async fn test_device_status_enum_methods() {
     let db = get_test_database(test_name).await.unwrap();
     
     // Test DeviceStatus enum methods
-    use crate::db::entities::devices::DeviceStatus;
+    use easytier_bridge::db::entities::devices::DeviceStatus;
     
     // Test is_approved method
     assert!(DeviceStatus::Approved.is_approved());
@@ -473,7 +477,7 @@ async fn test_device_status_enum_methods() {
     assert!(DeviceStatus::Rejected.is_online());
     assert!(!DeviceStatus::Offline.is_online());
     
-    cleanup_test_database(test_name).await.unwrap();
+    cleanup_test_database(&db).await.unwrap();
 }
 
 #[tokio::test]
@@ -487,7 +491,7 @@ async fn test_concurrent_heartbeat_handling() {
     let device_id = test_device_id();
     
     {
-        use crate::db::entities::devices;
+        use easytier_bridge::db::entities::devices;
         use sea_orm::{ActiveModelTrait, Set};
         use chrono::Utc;
         
@@ -546,7 +550,7 @@ async fn test_concurrent_heartbeat_handling() {
     
     // Verify device status is still correct after concurrent heartbeats
     {
-        use crate::db::entities::devices;
+        use easytier_bridge::db::entities::devices;
         use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
         
         let device = devices::Entity::find()
@@ -560,5 +564,5 @@ async fn test_concurrent_heartbeat_handling() {
         assert!(device.last_heartbeat.is_some());
     }
     
-    cleanup_test_database(test_name).await.unwrap();
+    cleanup_test_database(&db).await.unwrap();
 }
