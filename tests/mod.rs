@@ -5,6 +5,7 @@
 
 pub mod common;
 pub mod test_ffi_geoip;
+pub mod test_device_status_updates;
 
 // All tests are now included inline in the tests module below
 
@@ -239,5 +240,93 @@ use common::*;
         assert_eq!(deserialized.country, "中国");
         assert_eq!(deserialized.city, Some("上海".to_string()));
         assert_eq!(deserialized.region, Some("上海市".to_string()));
+    }
+    
+    // Device Status Update Integration Test
+    #[tokio::test]
+    #[serial]
+    async fn test_device_status_update_integration() {
+        let test_name = "device_status_update_integration";
+        let db = get_test_database(test_name).await
+            .expect("Failed to setup test database");
+        
+        // Setup test organization
+        let org_id = setup_test_organization(&db).await.unwrap();
+        
+        // Create ClientManager
+        let mut client_mgr = ClientManager::new(&get_test_database_url(test_name), None).await
+            .expect("Failed to create ClientManager");
+        
+        // Test the complete flow: device edit -> status preservation -> heartbeat -> status recovery
+        let device_id = test_device_id();
+        
+        // Step 1: Simulate device edit (like from frontend) - should preserve status
+        {
+            use crate::db::entities::devices;
+            use sea_orm::{ActiveModelTrait, Set};
+            use chrono::Utc;
+            
+            // Create device with approved status
+            let device = devices::ActiveModel {
+                id: Set(device_id.to_string()),
+                name: Set("Original Device".to_string()),
+                serial_number: Set(device_id.to_string()),
+                device_type: Set(devices::DeviceType::Robot),
+                organization_id: Set(Some(org_id.clone())),
+                status: Set(devices::DeviceStatus::Approved),
+                last_heartbeat: Set(Some(Utc::now().into())),
+                created_at: Set(Utc::now().into()),
+                updated_at: Set(Utc::now().into()),
+                ..Default::default()
+            };
+            
+            device.insert(db.orm()).await.unwrap();
+        }
+        
+        // Step 2: Simulate device edit (update name only, not status)
+        {
+            use crate::db::entities::devices;
+            use sea_orm::{ActiveModelTrait, ColumnTrait, EntityTrait, QueryFilter, Set};
+            
+            let device = devices::Entity::find()
+                .filter(devices::Column::Id.eq(device_id.to_string()))
+                .one(db.orm())
+                .await
+                .unwrap()
+                .unwrap();
+            
+            let mut active: devices::ActiveModel = device.clone().into();
+            active.name = Set("Updated Device Name".to_string()); // Only update name
+            active.updated_at = Set(chrono::Utc::now().into());
+            // Note: NOT updating status - this simulates the frontend edit behavior
+            
+            active.update(db.orm()).await.unwrap();
+        }
+        
+        // Step 3: Verify status is preserved after edit
+        {
+            use crate::db::entities::devices;
+            use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
+            
+            let device = devices::Entity::find()
+                .filter(devices::Column::Id.eq(device_id.to_string()))
+                .one(db.orm())
+                .await
+                .unwrap()
+                .unwrap();
+            
+            assert_eq!(device.status, devices::DeviceStatus::Approved);
+            assert_eq!(device.name, "Updated Device Name");
+        }
+        
+        // Step 4: Simulate heartbeat - should maintain approved status
+        let client_url = test_client_url();
+        let storage = client_mgr.storage().weak_ref();
+        let session = Session::new(storage, client_url, None);
+        
+        // The heartbeat handling should preserve the approved status
+        // This is tested in the dedicated test_device_status_updates module
+        
+        cleanup_test_database(test_name).await.unwrap();
     }
 }
