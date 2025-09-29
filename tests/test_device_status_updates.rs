@@ -8,8 +8,9 @@
 
 use serial_test::serial;
 
-mod common;
-use common::*;
+#[path = "test_common.rs"]
+mod test_common;
+use test_common::*;
 
 use chrono::Utc;
 use easytier::proto::web::HeartbeatRequest;

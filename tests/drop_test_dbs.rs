@@ -3,7 +3,8 @@
 //! 这个模块提供了一个独立的测试，可以用来清理所有测试数据库
 //! 运行方式: cargo test --test drop_test_dbs -- --nocapture
 
-mod common;
+#[path = "test_common.rs"]
+mod test_common;
 
 use sea_orm::{ConnectionTrait, Database as SeaOrmDatabase, DatabaseBackend, Statement};
 
