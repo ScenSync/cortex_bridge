@@ -54,7 +54,7 @@ async fn test_device_status_preservation_on_heartbeat() {
     client_mgr.start("tcp", 0).await.unwrap(); // Use port 0 for testing
 
     // Simulate heartbeat request
-    let heartbeat_req = HeartbeatRequest {
+    let _heartbeat_req = HeartbeatRequest {
         machine_id: Some(device_id.into()),
         user_token: org_id.clone(),
         hostname: "test-device".to_string(),
@@ -67,6 +67,17 @@ async fn test_device_status_preservation_on_heartbeat() {
     // Create a mock session and handle heartbeat
     let storage = client_mgr.storage().weak_ref();
     let session = Session::new(storage, client_url, None);
+    
+    // Actually call the heartbeat processing logic
+    use easytier_bridge::client_manager::session::SessionRpcService;
+    
+    // Create RPC service with the same data as the session
+    let rpc_service = SessionRpcService {
+        data: session.data().clone(),
+    };
+    
+    // Process the heartbeat request - this should preserve approved status
+    let _response = rpc_service.handle_heartbeat(_heartbeat_req).await.unwrap();
 
     // Test that heartbeat preserves approved status
     {
@@ -127,7 +138,7 @@ async fn test_device_status_transition_rejected_to_pending() {
     client_mgr.start("tcp", 0).await.unwrap();
 
     // Simulate heartbeat request - should transition from rejected to pending
-    let heartbeat_req = HeartbeatRequest {
+    let _heartbeat_req = HeartbeatRequest {
         machine_id: Some(device_id.into()),
         user_token: org_id.clone(),
         hostname: "test-device".to_string(),
@@ -140,6 +151,17 @@ async fn test_device_status_transition_rejected_to_pending() {
     // Create a mock session and handle heartbeat
     let storage = client_mgr.storage().weak_ref();
     let session = Session::new(storage, client_url, None);
+    
+    // Actually call the heartbeat processing logic
+    use easytier_bridge::client_manager::session::SessionRpcService;
+    
+    // Create RPC service with the same data as the session
+    let rpc_service = SessionRpcService {
+        data: session.data().clone(),
+    };
+    
+    // Process the heartbeat request - this should transition rejected to pending
+    let _response = rpc_service.handle_heartbeat(_heartbeat_req).await.unwrap();
 
     // Test that heartbeat transitions rejected device to pending
     {
@@ -200,7 +222,7 @@ async fn test_device_status_transition_offline_to_approved() {
     client_mgr.start("tcp", 0).await.unwrap();
 
     // Simulate heartbeat request - should transition from offline to approved
-    let heartbeat_req = HeartbeatRequest {
+    let _heartbeat_req = HeartbeatRequest {
         machine_id: Some(device_id.into()),
         user_token: org_id.clone(),
         hostname: "test-device".to_string(),
@@ -213,6 +235,17 @@ async fn test_device_status_transition_offline_to_approved() {
     // Create a mock session and handle heartbeat
     let storage = client_mgr.storage().weak_ref();
     let session = Session::new(storage, client_url, None);
+    
+    // Actually call the heartbeat processing logic
+    use easytier_bridge::client_manager::session::SessionRpcService;
+    
+    // Create RPC service with the same data as the session
+    let rpc_service = SessionRpcService {
+        data: session.data().clone(),
+    };
+    
+    // Process the heartbeat request - this should transition offline to approved
+    let _response = rpc_service.handle_heartbeat(_heartbeat_req).await.unwrap();
 
     // Test that heartbeat transitions offline device to approved
     {
@@ -289,7 +322,7 @@ async fn test_device_timeout_marking_offline() {
         .unwrap();
 
     // Manually trigger the timeout check (normally runs every 60 seconds)
-    let storage = client_mgr.storage().clone();
+    let _storage = client_mgr.storage().clone();
 
     // Wait a moment and then check status
     tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
@@ -343,7 +376,7 @@ async fn test_new_device_creation_with_pending_status() {
     let device_id = test_device_id();
     let client_url = test_client_url();
 
-    let heartbeat_req = HeartbeatRequest {
+    let _heartbeat_req = HeartbeatRequest {
         machine_id: Some(device_id.into()),
         user_token: org_id.clone(),
         hostname: "new-device".to_string(),
@@ -356,6 +389,17 @@ async fn test_new_device_creation_with_pending_status() {
     // Create a mock session and handle heartbeat
     let storage = client_mgr.storage().weak_ref();
     let session = Session::new(storage, client_url, None);
+    
+    // Actually call the heartbeat processing logic
+    use easytier_bridge::client_manager::session::SessionRpcService;
+    
+    // Create RPC service with the same data as the session
+    let rpc_service = SessionRpcService {
+        data: session.data().clone(),
+    };
+    
+    // Process the heartbeat request - this should create a new device with pending status
+    let _response = rpc_service.handle_heartbeat(_heartbeat_req).await.unwrap();
 
     // Test that new device is created with pending status
     {
@@ -534,13 +578,12 @@ async fn test_concurrent_heartbeat_handling() {
         .map(|i| {
             let storage = storage.clone();
             let client_url = client_url.clone();
-            let device_id = device_id;
             let org_id = org_id.clone();
 
             tokio::spawn(async move {
-                let session = Session::new(storage, client_url, None);
+                let _session = Session::new(storage, client_url, None);
 
-                let heartbeat_req = HeartbeatRequest {
+                let _heartbeat_req = HeartbeatRequest {
                     machine_id: Some(device_id.into()),
                     user_token: org_id,
                     hostname: format!("test-device-{}", i),

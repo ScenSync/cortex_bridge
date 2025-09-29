@@ -278,7 +278,7 @@ mod tests {
         let org_id = setup_test_organization(&db).await.unwrap();
 
         // Create ClientManager
-        let mut client_mgr = ClientManager::new(&get_test_database_url(test_name), None)
+        let client_mgr = ClientManager::new(&get_test_database_url(test_name), None)
             .await
             .expect("Failed to create ClientManager");
 
@@ -287,7 +287,7 @@ mod tests {
 
         // Step 1: Simulate device edit (like from frontend) - should preserve status
         {
-            use crate::db::entities::devices;
+            use easytier_bridge::db::entities::devices;
             use chrono::Utc;
             use sea_orm::{ActiveModelTrait, Set};
 
@@ -310,7 +310,7 @@ mod tests {
 
         // Step 2: Simulate device edit (update name only, not status)
         {
-            use crate::db::entities::devices;
+            use easytier_bridge::db::entities::devices;
             use sea_orm::{ActiveModelTrait, ColumnTrait, EntityTrait, QueryFilter, Set};
 
             let device = devices::Entity::find()
@@ -330,7 +330,7 @@ mod tests {
 
         // Step 3: Verify status is preserved after edit
         {
-            use crate::db::entities::devices;
+            use easytier_bridge::db::entities::devices;
             use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
 
             let device = devices::Entity::find()
@@ -347,11 +347,11 @@ mod tests {
         // Step 4: Simulate heartbeat - should maintain approved status
         let client_url = test_client_url();
         let storage = client_mgr.storage().weak_ref();
-        let session = Session::new(storage, client_url, None);
+        let _session = Session::new(storage, client_url, None);
 
         // The heartbeat handling should preserve the approved status
         // This is tested in the dedicated test_device_status_updates module
 
-        cleanup_test_database(test_name).await.unwrap();
+        cleanup_test_database(&db).await.unwrap();
     }
 }

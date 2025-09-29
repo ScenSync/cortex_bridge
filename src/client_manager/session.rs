@@ -80,12 +80,12 @@ pub type SharedSessionData = Arc<RwLock<SessionData>>;
 
 /// RPC service for handling session requests
 #[derive(Clone)]
-struct SessionRpcService {
-    data: SharedSessionData,
+pub struct SessionRpcService {
+    pub data: SharedSessionData,
 }
 
 impl SessionRpcService {
-    async fn handle_heartbeat(
+    pub async fn handle_heartbeat(
         &self,
         req: HeartbeatRequest,
     ) -> rpc_types::error::Result<HeartbeatResponse> {
