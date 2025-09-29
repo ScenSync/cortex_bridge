@@ -3,11 +3,13 @@
 //! This module provides logging initialization and panic recovery functionality
 //! specifically for the cortex-easytier-core module.
 
-use std::sync::Once;
-use std::path::Path;
 use std::fs;
-use tracing::{info, debug};
-use tracing_subscriber::{EnvFilter, fmt, layer::SubscriberExt, util::SubscriberInitExt, fmt::time::LocalTime};
+use std::path::Path;
+use std::sync::Once;
+use tracing::{debug, info};
+use tracing_subscriber::{
+    fmt, fmt::time::LocalTime, layer::SubscriberExt, util::SubscriberInitExt, EnvFilter,
+};
 
 /// Configuration for logging setup
 #[derive(Debug, Clone)]
@@ -31,10 +33,12 @@ static FILE_INIT: Once = Once::new();
 static PANIC_HOOK_INIT: Once = Once::new();
 
 // Guards for non-blocking writers
-static FILE_GUARD: once_cell::sync::Lazy<std::sync::Mutex<Option<tracing_appender::non_blocking::WorkerGuard>>> =
-    once_cell::sync::Lazy::new(|| std::sync::Mutex::new(None));
-static CONSOLE_GUARD: once_cell::sync::Lazy<std::sync::Mutex<Option<tracing_appender::non_blocking::WorkerGuard>>> =
-    once_cell::sync::Lazy::new(|| std::sync::Mutex::new(None));
+static FILE_GUARD: once_cell::sync::Lazy<
+    std::sync::Mutex<Option<tracing_appender::non_blocking::WorkerGuard>>,
+> = once_cell::sync::Lazy::new(|| std::sync::Mutex::new(None));
+static CONSOLE_GUARD: once_cell::sync::Lazy<
+    std::sync::Mutex<Option<tracing_appender::non_blocking::WorkerGuard>>,
+> = once_cell::sync::Lazy::new(|| std::sync::Mutex::new(None));
 
 // Error storage for initialization failures
 static INIT_ERROR: once_cell::sync::Lazy<std::sync::Mutex<Option<String>>> =
@@ -56,18 +60,25 @@ pub fn init_console_logging(config: &LoggingConfig) {
                     filter = filter.add_directive(
                         format!("{}={}", config.module_name, config.log_level)
                             .parse()
-                            .unwrap_or_else(|_| "info".parse().unwrap())
+                            .unwrap_or_else(|_| "info".parse().unwrap()),
                     );
                     // Add all submodules to the filter
                     let submodules = [
-                        "logging", "stun_wrapper", "easytier_web_client", "easytier_core_ffi",
-                        "client_manager", "db", "config", "config_srv", "network_config_srv_ffi"
+                        "logging",
+                        "stun_wrapper",
+                        "easytier_web_client",
+                        "easytier_core_ffi",
+                        "client_manager",
+                        "db",
+                        "config",
+                        "config_srv",
+                        "network_config_srv_ffi",
                     ];
                     for submodule in &submodules {
                         filter = filter.add_directive(
                             format!("{}::{}={}", config.module_name, submodule, config.log_level)
                                 .parse()
-                                .unwrap_or_else(|_| "debug".parse().unwrap())
+                                .unwrap_or_else(|_| "debug".parse().unwrap()),
                         );
                     }
                     filter
@@ -75,39 +86,52 @@ pub fn init_console_logging(config: &LoggingConfig) {
                 .unwrap_or_else(|_| {
                     // Create filter with module and all submodules
                     let submodules = [
-                        "logging", "stun_wrapper", "easytier_web_client", "easytier_core_ffi",
-                        "client_manager", "db", "config", "config_srv", "network_config_srv_ffi"
+                        "logging",
+                        "stun_wrapper",
+                        "easytier_web_client",
+                        "easytier_core_ffi",
+                        "client_manager",
+                        "db",
+                        "config",
+                        "config_srv",
+                        "network_config_srv_ffi",
                     ];
                     let mut filter_str = format!("{}={}", config.module_name, config.log_level);
                     for submodule in &submodules {
-                        filter_str.push_str(&format!(",{}::{}={}", config.module_name, submodule, config.log_level));
+                        filter_str.push_str(&format!(
+                            ",{}::{}={}",
+                            config.module_name, submodule, config.log_level
+                        ));
                     }
                     EnvFilter::new(filter_str)
                 });
-            
-            
-                            tracing_subscriber::registry()
-                    .with(env_filter)
-                    .with(fmt::layer()
+
+            tracing_subscriber::registry()
+                .with(env_filter)
+                .with(
+                    fmt::layer()
                         .with_target(true)
                         .with_thread_ids(true)
-                        .with_timer(LocalTime::rfc_3339()))
-                    .init();
-            
-            
+                        .with_timer(LocalTime::rfc_3339()),
+                )
+                .init();
+
             debug!(
                 "Console logging initialized for {} with environment filter support (default: {})",
                 config.module_name, config.log_level
             );
-            
-            info!("[RUST] Console logging successfully initialized for module: {}", config.module_name);
+
+            info!(
+                "[RUST] Console logging successfully initialized for module: {}",
+                config.module_name
+            );
         });
-        
+
         if let Err(e) = result {
             let error_msg = format!("Failed to initialize console logging: {:?}", e);
             *INIT_ERROR.lock().unwrap() = Some(error_msg);
         }
-        
+
         // Always initialize panic hook when logging is initialized
         init_panic_recovery();
     });
@@ -119,7 +143,7 @@ pub fn init_file_logging(
     log_path: &str,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let mut init_result = Ok(());
-    
+
     FILE_INIT.call_once(|| {
         let result = std::panic::catch_unwind(|| -> Result<(), Box<dyn std::error::Error>> {
             // Extract directory and filename from log_path
@@ -128,12 +152,12 @@ pub fn init_file_logging(
                 .ok_or("Invalid log path: no parent directory")?;
             let log_filename = path.file_name()
                 .ok_or("Invalid log path: no filename")?;
-            
+
             // Create log directory if it doesn't exist
             fs::create_dir_all(log_dir)?;
-            
+
             use tracing_appender::non_blocking;
-            
+
             // Create environment filter that prioritizes the explicitly provided log level
             // for the specific module, while still allowing other environment variables
             let env_filter = EnvFilter::try_from_default_env()
@@ -170,18 +194,18 @@ pub fn init_file_logging(
                     }
                     EnvFilter::new(filter_str)
                 });
-            
+
             // Create simple file appender without rotation (to match Go side)
             let file_appender = tracing_appender::rolling::never(log_dir, log_filename);
             let (file_writer, file_guard) = non_blocking(file_appender);
-            
+
             // Store the guard to prevent it from being dropped
             *FILE_GUARD.lock().unwrap() = Some(file_guard);
-            
+
             // Create console writer
             let (console_writer, console_guard) = non_blocking(std::io::stdout());
             *CONSOLE_GUARD.lock().unwrap() = Some(console_guard);
-            
+
             // Initialize tracing subscriber with both file and console output
             tracing_subscriber::registry()
                 .with(env_filter)
@@ -202,17 +226,17 @@ pub fn init_file_logging(
                         .with_timer(LocalTime::rfc_3339()),
                 )
                 .init();
-            
+
             debug!(
                 "File logging initialized for {} in directory: {} (default level: {}, no rotation)",
                 config.module_name, log_dir.display(), config.log_level
             );
-            
-            info!("[RUST] File logging successfully initialized for module: {} in directory: {} with level: {} (no rotation)t ", config.module_name, log_dir.display(), config.log_level);
-            
+
+            info!("[RUST] File logging successfully initialized for module: {} in directory: {} with level: {} (no rotation)", config.module_name, log_dir.display(), config.log_level);
+
             Ok(())
         });
-        
+
         match result {
             Ok(Ok(())) => {},
             Ok(Err(e)) => {
@@ -223,11 +247,11 @@ pub fn init_file_logging(
                 init_result = Err(error_msg.into());
             }
         }
-        
+
         // Always initialize panic hook when logging is initialized
         init_panic_recovery();
     });
-    
+
     init_result
 }
 
@@ -238,7 +262,11 @@ pub fn set_and_init_console_logging(level: &str, module_name: &str) {
 }
 
 /// Set configuration and initialize file logging in one call
-pub fn set_and_init_file_logging(level: &str, module_name: &str, log_path: &str) -> Result<(), Box<dyn std::error::Error>> {
+pub fn set_and_init_file_logging(
+    level: &str,
+    module_name: &str,
+    log_path: &str,
+) -> Result<(), Box<dyn std::error::Error>> {
     let config = LoggingConfig::new(level, module_name);
     init_file_logging(&config, log_path)
 }
@@ -256,25 +284,30 @@ pub fn init_panic_recovery() {
             } else {
                 "Unknown panic".to_string()
             };
-            
+
             let location = if let Some(location) = panic_info.location() {
-                format!(" at {}:{}:{}", location.file(), location.line(), location.column())
+                format!(
+                    " at {}:{}:{}",
+                    location.file(),
+                    location.line(),
+                    location.column()
+                )
             } else {
                 " at unknown location".to_string()
             };
-            
+
             let full_msg = format!("{}{}", panic_msg, location);
-            
+
             // Store the panic message
             *LAST_PANIC.lock().unwrap() = Some(full_msg.clone());
-            
+
             // Log the panic
             tracing::error!("PANIC RECOVERED: {}", panic_msg);
-            
+
             // Also print to stderr as a fallback
             eprintln!("[CORTEX-EASYTIER-CORE PANIC] {}", full_msg);
         }));
-        
+
         info!("[RUST] Cortex EasyTier Core panic recovery hook initialized");
     });
 }

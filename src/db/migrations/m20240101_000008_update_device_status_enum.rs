@@ -20,14 +20,14 @@ impl MigrationTrait for Migration {
                                 Alias::new("device_status"),
                                 [
                                     Alias::new("pending"),
-                                    Alias::new("approved"), 
+                                    Alias::new("approved"),
                                     Alias::new("rejected"),
-                                    Alias::new("available"), 
-                                    Alias::new("busy"), 
-                                    Alias::new("maintenance"), 
-                                    Alias::new("offline"), 
-                                    Alias::new("connecting"), 
-                                    Alias::new("network_error")
+                                    Alias::new("available"),
+                                    Alias::new("busy"),
+                                    Alias::new("maintenance"),
+                                    Alias::new("offline"),
+                                    Alias::new("connecting"),
+                                    Alias::new("network_error"),
                                 ],
                             )
                             .not_null()
@@ -41,9 +41,14 @@ impl MigrationTrait for Migration {
         let update_stmt = Query::update()
             .table(Devices::Table)
             .value(Devices::Status, "approved")
-            .and_where(Expr::col(Devices::Status).is_in(["available", "busy", "maintenance", "connecting"]))
+            .and_where(Expr::col(Devices::Status).is_in([
+                "available",
+                "busy",
+                "maintenance",
+                "connecting",
+            ]))
             .to_owned();
-        
+
         manager.exec_stmt(update_stmt).await?;
 
         Ok(())
@@ -60,12 +65,12 @@ impl MigrationTrait for Migration {
                             .enumeration(
                                 Alias::new("device_status"),
                                 [
-                                    Alias::new("available"), 
-                                    Alias::new("busy"), 
-                                    Alias::new("maintenance"), 
-                                    Alias::new("offline"), 
-                                    Alias::new("connecting"), 
-                                    Alias::new("network_error")
+                                    Alias::new("available"),
+                                    Alias::new("busy"),
+                                    Alias::new("maintenance"),
+                                    Alias::new("offline"),
+                                    Alias::new("connecting"),
+                                    Alias::new("network_error"),
                                 ],
                             )
                             .not_null()

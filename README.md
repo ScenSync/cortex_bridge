@@ -84,9 +84,35 @@ The crate provides comprehensive C FFI interfaces:
 ## Build Requirements
 
 - Rust 2021 edition
+- Protocol Buffers compiler (`protoc`) - **Required for building**
 - EasyTier dependency (GitHub: v2.4.2)
 - MySQL database (for web features)
 - cbindgen for C header generation
+
+### Installing Protocol Buffers Compiler
+
+The project requires `protoc` (Protocol Buffers compiler) to build successfully. Install it using your system's package manager:
+
+#### Ubuntu/Debian
+```bash
+sudo apt-get update
+sudo apt-get install protobuf-compiler
+```
+
+#### macOS (Homebrew)
+```bash
+brew install protobuf
+```
+
+#### Windows (Chocolatey)
+```bash
+choco install protoc
+```
+
+#### Manual Installation
+Download the latest release from the [Protocol Buffers releases page](https://github.com/protocolbuffers/protobuf/releases) <mcreference link="https://github.com/protocolbuffers/protobuf/releases" index="0">0</mcreference> and add the `protoc` binary to your PATH.
+
+For more information, see the [prost-build documentation](https://docs.rs/prost-build/#sourcing-protoc) <mcreference link="https://docs.rs/prost-build/#sourcing-protoc" index="1">1</mcreference>.
 
 ## Generated Headers
 

@@ -3,12 +3,11 @@
 //! This file contains test cases for the simplified Storage module,
 //! focusing on the new nested DashMap structure and core functionality.
 
-use std::sync::Arc;
 use easytier_bridge::client_manager::storage::{Storage, StorageToken};
+use std::sync::Arc;
+use std::sync::Once;
 use url::Url;
 use uuid::Uuid;
-use tracing_subscriber;
-use std::sync::Once;
 
 // Initialize tracing once for all tests
 static INIT_TRACING: Once = Once::new();
@@ -62,10 +61,8 @@ async fn test_storage_update_and_retrieve_client() {
     storage.update_client(storage_token.clone(), report_time);
 
     // Verify client was added by checking if we can get its URL by device ID
-    let retrieved_url = storage.get_client_url_by_device_id(
-        &storage_token.organization_id,
-        &storage_token.device_id,
-    );
+    let retrieved_url = storage
+        .get_client_url_by_device_id(&storage_token.organization_id, &storage_token.device_id);
     assert!(retrieved_url.is_some());
     assert_eq!(retrieved_url.unwrap(), storage_token.client_url);
 
@@ -92,18 +89,16 @@ async fn test_storage_update_client_multiple_times() {
     // Update client multiple times with different timestamps
     let report_time1 = 1000;
     let report_time2 = 2000;
-    
+
     storage.update_client(storage_token.clone(), report_time1);
     storage.update_client(storage_token.clone(), report_time2);
 
     // Should still only have one entry for this device
     let org_clients = storage.list_organization_clients(&storage_token.organization_id);
     assert_eq!(org_clients.len(), 1);
-    
-    let retrieved_url = storage.get_client_url_by_device_id(
-        &storage_token.organization_id,
-        &storage_token.device_id,
-    );
+
+    let retrieved_url = storage
+        .get_client_url_by_device_id(&storage_token.organization_id, &storage_token.device_id);
     assert!(retrieved_url.is_some());
 }
 
@@ -123,22 +118,18 @@ async fn test_storage_remove_client() {
 
     // Add client
     storage.update_client(storage_token.clone(), chrono::Utc::now().timestamp());
-    
+
     // Verify it exists
-    let retrieved_url = storage.get_client_url_by_device_id(
-        &storage_token.organization_id,
-        &storage_token.device_id,
-    );
+    let retrieved_url = storage
+        .get_client_url_by_device_id(&storage_token.organization_id, &storage_token.device_id);
     assert!(retrieved_url.is_some());
 
     // Remove client
     storage.remove_client(&storage_token);
 
     // Verify it's gone
-    let retrieved_url_after = storage.get_client_url_by_device_id(
-        &storage_token.organization_id,
-        &storage_token.device_id,
-    );
+    let retrieved_url_after = storage
+        .get_client_url_by_device_id(&storage_token.organization_id, &storage_token.device_id);
     assert!(retrieved_url_after.is_none());
 
     // Organization client list should be empty
@@ -235,7 +226,7 @@ async fn test_storage_weak_reference() {
     let org_id = "test-org-007".to_string();
     let empty_list1 = storage.list_organization_clients(&org_id);
     let empty_list2 = strong_ref.list_organization_clients(&org_id);
-    
+
     assert_eq!(empty_list1, empty_list2);
 }
 
@@ -253,7 +244,7 @@ async fn test_storage_concurrent_operations() {
     for i in 0..10 {
         let storage_clone = Arc::clone(&storage);
         let org_id_clone = org_id.clone();
-        
+
         let handle = tokio::spawn(async move {
             let token = StorageToken {
                 token: format!("concurrent_token_{:03}", i),
@@ -350,5 +341,8 @@ async fn test_storage_database_access() {
     // Test direct database access
     let db_ref = storage.db();
     let ping_result = db_ref.orm().ping().await;
-    assert!(ping_result.is_ok(), "Database should be accessible through storage");
+    assert!(
+        ping_result.is_ok(),
+        "Database should be accessible through storage"
+    );
 }

@@ -19,11 +19,7 @@ impl MigrationTrait for Migration {
                             .not_null()
                             .primary_key(),
                     )
-                    .col(
-                        ColumnDef::new(Devices::Name)
-                            .string_len(100)
-                            .not_null(),
-                    )
+                    .col(ColumnDef::new(Devices::Name).string_len(100).not_null())
                     .col(
                         ColumnDef::new(Devices::SerialNumber)
                             .string_len(100)
@@ -38,57 +34,32 @@ impl MigrationTrait for Migration {
                             )
                             .not_null(),
                     )
-                    .col(
-                        ColumnDef::new(Devices::Model)
-                            .string_len(100)
-                            .null(),
-                    )
-
+                    .col(ColumnDef::new(Devices::Model).string_len(100).null())
                     .col(
                         ColumnDef::new(Devices::Status)
                             .enumeration(
                                 Alias::new("device_status"),
                                 [
                                     Alias::new("pending"),
-                                    Alias::new("approved"), 
+                                    Alias::new("approved"),
                                     Alias::new("rejected"),
-                                    Alias::new("available"), 
-                                    Alias::new("busy"), 
-                                    Alias::new("maintenance"), 
-                                    Alias::new("offline"), 
-                                    Alias::new("connecting"), 
-                                    Alias::new("network_error")
+                                    Alias::new("available"),
+                                    Alias::new("busy"),
+                                    Alias::new("maintenance"),
+                                    Alias::new("offline"),
+                                    Alias::new("connecting"),
+                                    Alias::new("network_error"),
                                 ],
                             )
                             .not_null()
                             .default("pending"),
                     )
-                    .col(
-                        ColumnDef::new(Devices::Capabilities)
-                            .json()
-                            .null(),
-                    )
-                    .col(
-                        ColumnDef::new(Devices::OrganizationId)
-                            .char_len(36)
-                            .null(),
-                    )
-                    .col(
-                        ColumnDef::new(Devices::ScenarioId)
-                            .unsigned()
-                            .null(),
-                    )
-                    .col(
-                        ColumnDef::new(Devices::LastHeartbeat)
-                            .timestamp()
-                            .null(),
-                    )
+                    .col(ColumnDef::new(Devices::Capabilities).json().null())
+                    .col(ColumnDef::new(Devices::OrganizationId).char_len(36).null())
+                    .col(ColumnDef::new(Devices::ScenarioId).unsigned().null())
+                    .col(ColumnDef::new(Devices::LastHeartbeat).timestamp().null())
                     // Robot-specific fields (only when device_type is robot)
-                    .col(
-                        ColumnDef::new(Devices::RobotTypeId)
-                            .char_len(36)
-                            .null(),
-                    )
+                    .col(ColumnDef::new(Devices::RobotTypeId).char_len(36).null())
                     // Network configuration fields (merged from user_running_network_configs)
                     .col(
                         ColumnDef::new(Devices::NetworkInstanceId)
@@ -96,11 +67,7 @@ impl MigrationTrait for Migration {
                             .null()
                             .unique_key(),
                     )
-                    .col(
-                        ColumnDef::new(Devices::NetworkConfig)
-                            .json()
-                            .null(),
-                    )
+                    .col(ColumnDef::new(Devices::NetworkConfig).json().null())
                     .col(
                         ColumnDef::new(Devices::NetworkDisabled)
                             .boolean()
@@ -118,11 +85,7 @@ impl MigrationTrait for Migration {
                             .null(),
                     )
                     // Virtual IP fields (extracted from network info)
-                    .col(
-                        ColumnDef::new(Devices::VirtualIp)
-                            .unsigned()
-                            .null(),
-                    )
+                    .col(ColumnDef::new(Devices::VirtualIp).unsigned().null())
                     .col(
                         ColumnDef::new(Devices::VirtualIpNetworkLength)
                             .unsigned()

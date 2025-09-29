@@ -1,11 +1,11 @@
 //! Database module for easytier-bridge
-//! 
+//!
 //! This module provides MySQL-based storage for client management,
 //! reusing models from cortex-core where possible.
 
+pub mod connection;
 pub mod entities;
 pub mod migrations;
-pub mod connection;
 
 use sea_orm::{DatabaseConnection, DbErr};
 use std::sync::Arc;
@@ -25,21 +25,21 @@ impl Database {
     /// Create a new database instance
     pub async fn new(database_url: &str) -> Result<Self, DbErr> {
         let orm_conn = connection::establish_connection(database_url).await?;
-        
+
         Ok(Self {
             orm_conn: Arc::new(orm_conn),
         })
     }
-    
+
     /// Create a new database instance optimized for testing
     pub async fn new_for_test(database_url: &str) -> Result<Self, DbErr> {
         let orm_conn = connection::establish_test_connection(database_url).await?;
-        
+
         Ok(Self {
             orm_conn: Arc::new(orm_conn),
         })
     }
-    
+
     /// Get the SeaORM connection
     pub fn orm(&self) -> &DatabaseConnection {
         &self.orm_conn
