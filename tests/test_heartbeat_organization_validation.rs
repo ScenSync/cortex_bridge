@@ -21,8 +21,9 @@ use easytier::{
     web_client::WebClient,
 };
 
-mod common;
-use common::*;
+#[path = "test_common.rs"]
+mod test_common;
+use test_common::*;
 
 #[tokio::test]
 async fn test_heartbeat_with_valid_organization() {

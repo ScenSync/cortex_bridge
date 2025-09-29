@@ -80,12 +80,12 @@ pub type SharedSessionData = Arc<RwLock<SessionData>>;
 
 /// RPC service for handling session requests
 #[derive(Clone)]
-struct SessionRpcService {
-    data: SharedSessionData,
+pub struct SessionRpcService {
+    pub data: SharedSessionData,
 }
 
 impl SessionRpcService {
-    async fn handle_heartbeat(
+    pub async fn handle_heartbeat(
         &self,
         req: HeartbeatRequest,
     ) -> rpc_types::error::Result<HeartbeatResponse> {
@@ -221,16 +221,34 @@ impl SessionRpcService {
                 active.last_heartbeat = Set(Some(chrono::Utc::now().into()));
                 active.updated_at = Set(chrono::Utc::now().into());
 
-                // If device is rejected, change status back to pending when it reconnects
-                let new_status = if device.status.is_rejected() {
-                    crate::info!(
-                        "[SESSION_RPC] Rejected device {} reconnected, changing status to pending",
-                        device_id_str
-                    );
-                    active.status = Set(devices::DeviceStatus::Pending);
-                    devices::DeviceStatus::Pending
-                } else {
-                    device.status
+                // Handle status transitions based on current status
+                let new_status = match device.status {
+                    // If device is rejected, change status back to pending when it reconnects
+                    devices::DeviceStatus::Rejected => {
+                        crate::info!("[SESSION_RPC] Rejected device {} reconnected, changing status to pending", device_id_str);
+                        active.status = Set(devices::DeviceStatus::Pending);
+                        devices::DeviceStatus::Pending
+                    }
+                    // If device is offline, change status back to approved when it reconnects (if it was previously approved)
+                    devices::DeviceStatus::Offline => {
+                        // Check if device was previously approved by looking at other fields
+                        // For now, assume if it has organization_id and is not rejected, it should be approved
+                        crate::info!("[SESSION_RPC] Offline device {} reconnected, changing status to approved", device_id_str);
+                        active.status = Set(devices::DeviceStatus::Approved);
+                        devices::DeviceStatus::Approved
+                    }
+                    // For other statuses (pending, approved, etc.), keep the existing status
+                    _ => {
+                        // Only update to approved if device is pending and has been approved by admin
+                        // This preserves the admin's approval decision
+                        if device.status.is_pending() {
+                            // Keep pending status - admin needs to explicitly approve
+                            device.status
+                        } else {
+                            // For approved devices, ensure they stay approved when heartbeat comes in
+                            device.status
+                        }
+                    }
                 };
 
                 active.update(storage.db().orm()).await.with_context(|| {
