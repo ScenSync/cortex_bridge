@@ -6,4 +6,3 @@
 // test_common is included directly in each test file
 pub mod test_device_status_updates;
 pub mod test_ffi_geoip;
-
