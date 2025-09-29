@@ -207,15 +207,13 @@ impl ClientManager {
                 }
             }
         });
-      
-      
-        
+
         // Device timeout task - mark devices as offline if no heartbeat for 60 seconds
         let storage_weak = Storage::new(database.clone()).weak_ref();
         tasks.spawn(async move {
             loop {
                 tokio::time::sleep(std::time::Duration::from_secs(60)).await;
-                
+
                 if let Ok(storage) = Storage::try_from(storage_weak.clone()) {
                     if let Err(e) = Self::mark_offline_devices(&storage).await {
                         crate::error!("[CLIENT_MANAGER] Failed to mark offline devices: {:?}", e);
@@ -223,7 +221,7 @@ impl ClientManager {
                 }
             }
         });
-        
+
         // Use provided path or auto-detect from configuration
         #[cfg(feature = "web")]
         let geoip_path = geoip_db.or_else(crate::config::get_geoip_db_path);
@@ -472,9 +470,9 @@ impl ClientManager {
     async fn mark_offline_devices(storage: &Storage) -> Result<(), anyhow::Error> {
         use crate::db::entities::devices;
         use sea_orm::{ActiveModelTrait, ColumnTrait, EntityTrait, QueryFilter, Set};
-        
+
         let cutoff_time = chrono::Utc::now() - chrono::Duration::seconds(60);
-        
+
         // Find devices that haven't sent heartbeat recently and are not already offline
         let offline_devices = devices::Entity::find()
             .filter(devices::Column::LastHeartbeat.lt(cutoff_time))
@@ -482,25 +480,33 @@ impl ClientManager {
             .all(storage.db().orm())
             .await
             .with_context(|| "Failed to query devices for timeout check")?;
-        
+
         if offline_devices.is_empty() {
             return Ok(());
         }
-        
-        crate::info!("[CLIENT_MANAGER] Marking {} devices as offline due to timeout", offline_devices.len());
-        
+
+        crate::info!(
+            "[CLIENT_MANAGER] Marking {} devices as offline due to timeout",
+            offline_devices.len()
+        );
+
         // Mark each device as offline
         for device in offline_devices {
             let mut active: devices::ActiveModel = device.clone().into();
             active.status = Set(devices::DeviceStatus::Offline);
             active.updated_at = Set(chrono::Utc::now().into());
-            
-            active.update(storage.db().orm()).await
+
+            active
+                .update(storage.db().orm())
+                .await
                 .with_context(|| format!("Failed to mark device {} as offline", device.id))?;
-            
-            crate::debug!("[CLIENT_MANAGER] Marked device {} as offline due to timeout", device.id);
+
+            crate::debug!(
+                "[CLIENT_MANAGER] Marked device {} as offline due to timeout",
+                device.id
+            );
         }
-        
+
         Ok(())
     }
 

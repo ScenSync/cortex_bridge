@@ -220,7 +220,7 @@ impl SessionRpcService {
                 let mut active: devices::ActiveModel = device.clone().into();
                 active.last_heartbeat = Set(Some(chrono::Utc::now().into()));
                 active.updated_at = Set(chrono::Utc::now().into());
-                
+
                 // Handle status transitions based on current status
                 let new_status = match device.status {
                     // If device is rejected, change status back to pending when it reconnects
@@ -228,7 +228,7 @@ impl SessionRpcService {
                         crate::info!("[SESSION_RPC] Rejected device {} reconnected, changing status to pending", device_id_str);
                         active.status = Set(devices::DeviceStatus::Pending);
                         devices::DeviceStatus::Pending
-                    },
+                    }
                     // If device is offline, change status back to approved when it reconnects (if it was previously approved)
                     devices::DeviceStatus::Offline => {
                         // Check if device was previously approved by looking at other fields
@@ -236,7 +236,7 @@ impl SessionRpcService {
                         crate::info!("[SESSION_RPC] Offline device {} reconnected, changing status to approved", device_id_str);
                         active.status = Set(devices::DeviceStatus::Approved);
                         devices::DeviceStatus::Approved
-                    },
+                    }
                     // For other statuses (pending, approved, etc.), keep the existing status
                     _ => {
                         // Only update to approved if device is pending and has been approved by admin
