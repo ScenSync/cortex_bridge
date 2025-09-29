@@ -7,7 +7,6 @@
 //! - Integration with cortex-core device service
 
 use serial_test::serial;
-use tokio;
 
 mod common;
 use common::*;
@@ -285,7 +284,7 @@ async fn test_device_timeout_marking_offline() {
     }
 
     // Create ClientManager with shorter timeout for testing
-    let mut client_mgr = ClientManager::new(&get_test_database_url(test_name), None)
+    let client_mgr = ClientManager::new(&get_test_database_url(test_name), None)
         .await
         .unwrap();
 
@@ -417,7 +416,7 @@ async fn test_device_status_preservation_during_edit() {
         use easytier_bridge::db::entities::devices;
         use sea_orm::{ActiveModelTrait, ColumnTrait, EntityTrait, QueryFilter, Set};
 
-        let mut device = devices::Entity::find()
+        let device = devices::Entity::find()
             .filter(devices::Column::Id.eq(device_id.to_string()))
             .one(db.orm())
             .await
@@ -535,7 +534,7 @@ async fn test_concurrent_heartbeat_handling() {
         .map(|i| {
             let storage = storage.clone();
             let client_url = client_url.clone();
-            let device_id = device_id.clone();
+            let device_id = device_id;
             let org_id = org_id.clone();
 
             tokio::spawn(async move {
