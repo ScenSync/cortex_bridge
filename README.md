@@ -10,38 +10,49 @@ This crate merges the functionality of two previously separate crates:
 
 ## Features
 
-### Core Features (always enabled)
-- Direct EasyTier core integration
-- Network instance management
-- STUN wrapper functionality
-- C FFI interfaces for core functionality
-- Logging and panic recovery
-
-### Web Features (optional, enabled by default)
-- EasyTier Web Client Manager
+### Server Features (optional, enabled by default)
+- EasyTier Core Server functionality
+- Client Manager for handling incoming connections
 - MySQL database storage integration
 - Session and storage management
 - GeoIP configuration support
-- Additional C FFI interfaces for web functionality
+- Network configuration service FFI
+- C FFI interfaces for server functionality
+
+### Client Features (optional, enabled by default)
+- EasyTier Web Client functionality
+- Connects to EasyTier servers
+- C FFI interfaces for client functionality
+
+### Shared Features (always enabled)
+- Logging and panic recovery
+- STUN wrapper functionality
 
 ## Feature Flags
 
-- `default = ["core", "web"]` - Enables both core and web functionality
-- `core` - Core EasyTier integration (always available)
-- `web` - Web client management features
-- `websocket` - WebSocket support (part of web features)
-- `database` - Database integration (sea-orm, sea-orm-migration)
+- `default = ["server", "client"]` - Enables both server and client functionality
+- `server` - Server functionality (manages clients, database, sessions)
+- `client` - Client functionality (connects to servers)
+- `database` - Database integration (sea-orm, sea-orm-migration) - part of server
+- `websocket` - WebSocket support (part of server features)
 
 ## Usage
 
-### Basic Usage (Core Only)
+### Server Only (for hosting/managing clients)
 
 ```toml
 [dependencies]
-easytier-bridge = { version = "0.1.0", default-features = false, features = ["core"] }
+easytier-bridge = { version = "0.1.0", default-features = false, features = ["server"] }
 ```
 
-### Full Usage (Core + Web)
+### Client Only (for connecting to servers)
+
+```toml
+[dependencies]
+easytier-bridge = { version = "0.1.0", default-features = false, features = ["client"] }
+```
+
+### Full Usage (Server + Client)
 
 ```toml
 [dependencies]
@@ -52,15 +63,18 @@ easytier-bridge = "0.1.0"
 
 ```rust
 use cortex_easytier_bridge::{
-    // Core functionality
-    cortex_start_web_client,
-    cortex_stop_web_client,
-    cortex_get_web_client_network_info,
-    
-    // Web functionality (if enabled)
+    // Server functionality (if server feature enabled)
+    start_easytier_core,
+    stop_easytier_core,
+    EasyTierCoreConfig,
     ClientManager,
     Session,
     Storage,
+    
+    // Client functionality (if client feature enabled)
+    cortex_start_web_client,
+    cortex_stop_web_client,
+    cortex_get_web_client_network_info,
 };
 ```
 
@@ -68,18 +82,18 @@ use cortex_easytier_bridge::{
 
 The crate provides comprehensive C FFI interfaces:
 
-#### Core Functions
-- `cortex_start_web_client`
-- `cortex_stop_web_client`
-- `cortex_get_network_info`
-- `cortex_list_instances`
-- `cortex_core_set_and_init_console_logging`
-- `cortex_core_set_and_init_file_logging`
-
-#### Web Functions (when web feature is enabled)
+#### Server Functions (when server feature is enabled)
+- `start_easytier_core`
+- `stop_easytier_core`
 - `cortex_web_set_and_init_console_logging`
 - `cortex_web_set_and_init_file_logging`
 - Network configuration FFI functions
+
+#### Client Functions (when client feature is enabled)
+- `cortex_start_web_client`
+- `cortex_stop_web_client`
+- `cortex_get_web_client_network_info`
+- `cortex_list_web_client_instances`
 
 ## Build Requirements
 
@@ -140,14 +154,19 @@ Run tests with:
 cargo test
 ```
 
-For web-specific tests:
+For server-specific tests:
 ```bash
-cargo test --features web
+cargo test --features server
+```
+
+For client-specific tests:
+```bash
+cargo test --features client
 ```
 
 ## Architecture
 
-The unified crate maintains a clean separation between core and web functionality:
+The unified crate maintains a clean separation between server and client functionality:
 
 ```
 src/

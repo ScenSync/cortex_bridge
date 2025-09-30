@@ -11,11 +11,11 @@ name = "easytier_bridge"
 crate-type = ["cdylib", "staticlib", "rlib"]
 
 [features]
-default = ["core", "web"]
-core = []
-web = ["websocket", "database"]
-websocket = []
+default = ["server", "client"]
+server = ["database", "websocket", "maxminddb", "urlencoding"]  # Core server functionality
+client = []                         # Web client functionality  
 database = ["sea-orm", "sea-orm-migration"]
+websocket = []
 
 [dependencies]
 # EasyTier integration - 核心依赖 (使用 GitHub 依赖) - Updated to latest version
@@ -41,17 +41,17 @@ chrono = { version = "0.4", features = ["serde"] }
 anyhow = "1.0"
 thiserror = "1.0"
 
-# Core-specific dependencies
+# Shared dependencies (always available)
 gethostname = "0.4.3"
 
-# Web-specific dependencies
-maxminddb = "0.24"
-urlencoding = "2.1"
+# Server-specific dependencies
+maxminddb = { version = "0.24", optional = true }
+urlencoding = { version = "2.1", optional = true }
 axum = { version = "0.7", features = ["macros"], optional = true }
 axum-messages = { version = "0.7.0", optional = true }
 axum-embed = { version = "0.1.0", optional = true }
 
-# Database dependencies (web-specific)
+# Database dependencies (server-specific)
 sea-orm = { version = "1.1", features = ["sqlx-mysql", "runtime-tokio-rustls", "macros"], optional = true }
 sea-orm-migration = { version = "1.1", optional = true }
 
