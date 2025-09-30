@@ -17,7 +17,7 @@ use easytier::{
         tcp::TcpTunnelListener, udp::UdpTunnelListener, websocket::WSTunnelListener, TunnelListener,
     },
 };
-#[cfg(feature = "web")]
+#[cfg(feature = "server")]
 use maxminddb::geoip2;
 use tokio::task::JoinSet;
 
@@ -89,7 +89,7 @@ pub async fn get_dual_stack_listener(
     Ok((v6_listener, v4_listener))
 }
 
-#[cfg(feature = "web")]
+#[cfg(feature = "server")]
 fn load_geoip_db(geoip_db: Option<String>) -> Option<maxminddb::Reader<Vec<u8>>> {
     if let Some(path) = geoip_db {
         crate::info!("[GEOIP] Attempting to load GeoIP2 database from: {}", path);
@@ -119,7 +119,7 @@ pub struct ClientManager {
     listeners_cnt: Arc<AtomicU32>,
     client_sessions: Arc<DashMap<url::Url, Arc<Session>>>,
     storage: Storage,
-    #[cfg(feature = "web")]
+    #[cfg(feature = "server")]
     geoip_db: Arc<Option<maxminddb::Reader<Vec<u8>>>>,
 }
 
@@ -223,7 +223,7 @@ impl ClientManager {
         });
 
         // Use provided path or auto-detect from configuration
-        #[cfg(feature = "web")]
+        #[cfg(feature = "server")]
         let geoip_path = geoip_db.or_else(crate::config::get_geoip_db_path);
 
         let manager = ClientManager {
@@ -231,7 +231,7 @@ impl ClientManager {
             listeners_cnt: Arc::new(AtomicU32::new(0)),
             client_sessions,
             storage: Storage::new(database),
-            #[cfg(feature = "web")]
+            #[cfg(feature = "server")]
             geoip_db: Arc::new(load_geoip_db(geoip_path)),
         };
 
@@ -283,7 +283,7 @@ impl ClientManager {
         let sessions = self.client_sessions.clone();
         let storage = self.storage.weak_ref();
         let listeners_cnt = self.listeners_cnt.clone();
-        #[cfg(feature = "web")]
+        #[cfg(feature = "server")]
         let geoip_db = self.geoip_db.clone();
 
         self.tasks.spawn(async move {
@@ -295,9 +295,9 @@ impl ClientManager {
             while let Ok(tunnel) = listener.accept().await {
                 let info = tunnel.info().unwrap();
                 let client_url: url::Url = info.remote_addr.unwrap().into();
-                #[cfg(feature = "web")]
+                #[cfg(feature = "server")]
                 let location = Self::lookup_location(&client_url, geoip_db.clone());
-                #[cfg(not(feature = "web"))]
+                #[cfg(not(feature = "server"))]
                 let location = None;
 
                 crate::info!(
@@ -529,7 +529,7 @@ impl ClientManager {
     }
 
     /// Lookup geographic location for client IP
-    #[cfg(feature = "web")]
+    #[cfg(feature = "server")]
     fn lookup_location(
         client_url: &url::Url,
         geoip_db: Arc<Option<maxminddb::Reader<Vec<u8>>>>,

@@ -8,9 +8,7 @@ use std::ffi::{c_char, c_int, CStr, CString};
 use std::ptr;
 use std::sync::Mutex;
 
-// Core functionality modules
-mod easytier_core_ffi;
-mod easytier_web_client;
+// Shared functionality modules (always available)
 mod logging;
 mod stun_wrapper;
 
@@ -18,51 +16,60 @@ mod stun_wrapper;
 #[cfg(test)]
 mod launcher_test;
 
-// Web functionality modules (conditional compilation)
-#[cfg(feature = "web")]
+// Server functionality modules (conditional compilation)
+#[cfg(feature = "server")]
 pub mod client_manager;
-#[cfg(feature = "web")]
+#[cfg(feature = "server")]
 pub mod config;
-#[cfg(feature = "web")]
+#[cfg(feature = "server")]
 pub mod config_srv;
-#[cfg(feature = "web")]
+#[cfg(feature = "server")]
 pub mod db;
-#[cfg(feature = "web")]
+#[cfg(feature = "server")]
+mod easytier_core_ffi;
+#[cfg(feature = "server")]
 pub mod network_config_srv_ffi;
 
-// Re-export logging functionality
+// Client functionality modules (conditional compilation)
+#[cfg(feature = "client")]
+mod easytier_web_client;
+
+// Re-export shared functionality
 pub use logging::*;
-
-// Re-export core functionality
-pub use easytier_web_client::{
-    cortex_get_web_client_network_info, cortex_list_web_client_instances, cortex_start_web_client,
-    cortex_stop_web_client,
-};
-
-// Re-export core FFI functionality
-pub use easytier_core_ffi::{start_easytier_core, stop_easytier_core, EasyTierCoreConfig};
-
 pub use stun_wrapper::MockStunInfoCollectorWrapper;
 
-// Re-export web functionality (conditional)
-#[cfg(feature = "web")]
+// Re-export server functionality (conditional)
+#[cfg(feature = "server")]
+pub use easytier_core_ffi::{start_easytier_core, stop_easytier_core, EasyTierCoreConfig};
+
+#[cfg(feature = "server")]
 pub use client_manager::{
     session::{Location, Session},
     storage::{Storage, StorageToken},
     ClientManager,
 };
 
-#[cfg(feature = "web")]
+#[cfg(feature = "server")]
 pub use db::{entities, Database};
 
-#[cfg(feature = "web")]
+#[cfg(feature = "server")]
 pub use network_config_srv_ffi::*;
 
+// Re-export client functionality (conditional)
+#[cfg(feature = "client")]
+pub use easytier_web_client::{
+    cortex_get_web_client_network_info, cortex_list_web_client_instances, cortex_start_web_client,
+    cortex_stop_web_client,
+};
+
 // Global state management
+#[cfg(feature = "server")]
 use easytier::launcher::NetworkInstance;
+#[cfg(feature = "server")]
 use std::collections::HashMap;
 
-// Core instances storage for FFI
+// Core instances storage for FFI (server feature only)
+#[cfg(feature = "server")]
 static CLIENT_INSTANCES: once_cell::sync::Lazy<Mutex<HashMap<String, NetworkInstance>>> =
     once_cell::sync::Lazy::new(|| Mutex::new(HashMap::new()));
 
@@ -209,8 +216,8 @@ pub extern "C" fn cortex_core_set_and_init_file_logging(
     0
 }
 
-// Web-specific FFI functions (conditional compilation)
-#[cfg(feature = "web")]
+// Server-specific FFI functions (conditional compilation)
+#[cfg(feature = "server")]
 #[no_mangle]
 #[allow(clippy::not_unsafe_ptr_arg_deref)]
 pub extern "C" fn cortex_web_set_and_init_console_logging(
@@ -248,7 +255,7 @@ pub extern "C" fn cortex_web_set_and_init_console_logging(
     0
 }
 
-#[cfg(feature = "web")]
+#[cfg(feature = "server")]
 #[no_mangle]
 #[allow(clippy::not_unsafe_ptr_arg_deref)]
 pub extern "C" fn cortex_web_set_and_init_file_logging(
@@ -321,26 +328,26 @@ pub extern "C" fn cortex_core_init_panic_recovery() {
     // Implementation placeholder
 }
 
-#[cfg(feature = "web")]
+#[cfg(feature = "server")]
 #[no_mangle]
 pub extern "C" fn cortex_web_get_last_panic() -> *mut c_char {
     // Implementation placeholder
     ptr::null_mut()
 }
 
-#[cfg(feature = "web")]
+#[cfg(feature = "server")]
 #[no_mangle]
 pub extern "C" fn cortex_web_clear_last_panic() {
     // Implementation placeholder
 }
 
-#[cfg(feature = "web")]
+#[cfg(feature = "server")]
 #[no_mangle]
 pub extern "C" fn cortex_web_init_panic_recovery() {
     // Implementation placeholder
 }
 
-#[cfg(feature = "web")]
+#[cfg(feature = "server")]
 #[no_mangle]
 #[allow(clippy::not_unsafe_ptr_arg_deref)]
 pub extern "C" fn cortex_easytier_web_free_string(ptr: *mut c_char) {
