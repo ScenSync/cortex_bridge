@@ -268,11 +268,11 @@ jobs:
         fi
         echo "C header file size: $(wc -c < include/easytier_bridge.h) bytes"
 
-  # Coverage (only run on main branch to save resources)
+  # Coverage (only run on main and develop branches to save resources)
   coverage:
     name: Code Coverage
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' || github.event_name == 'pull_request'
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
     needs: [quick-checks, unit-tests]  # Don't wait for slow integration tests
     timeout-minutes: 60  # Realistic timeout for coverage builds
     services:
@@ -327,15 +327,15 @@ jobs:
     - name: Install cargo-llvm-cov
       uses: taiki-e/install-action@cargo-llvm-cov
 
-    - name: Generate code coverage (lib only for speed)
+    - name: Generate code coverage
       env:
         DATABASE_URL: mysql://root:root123@127.0.0.1:3306/easytier_bridge_test
         CARGO_INCREMENTAL: 0
         RUSTFLAGS: "-C instrument-coverage"
       run: |
         echo "Running coverage on library code only to reduce compilation time..."
-        cargo llvm-cov --lib --all-features --lcov --output-path lcov.info
-      timeout-minutes: 45
+        cargo llvm-cov --workspace --all-features --lcov --output-path lcov.info
+      timeout-minutes: 60
 
     - name: Upload coverage reports to Codecov
       uses: codecov/codecov-action@v5
