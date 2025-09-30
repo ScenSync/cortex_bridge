@@ -63,10 +63,13 @@ pub use easytier_web_client::{
 };
 
 // Global state management
+#[cfg(feature = "server")]
 use easytier::launcher::NetworkInstance;
+#[cfg(feature = "server")]
 use std::collections::HashMap;
 
-// Core instances storage for FFI
+// Core instances storage for FFI (server feature only)
+#[cfg(feature = "server")]
 static CLIENT_INSTANCES: once_cell::sync::Lazy<Mutex<HashMap<String, NetworkInstance>>> =
     once_cell::sync::Lazy::new(|| Mutex::new(HashMap::new()));
 
