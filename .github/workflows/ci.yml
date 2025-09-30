@@ -59,8 +59,11 @@ jobs:
       run: |
         if [ "${{ matrix.feature-set }}" = "default" ]; then
           cargo check --all-targets --all-features
-        else
-          cargo check --no-default-features --features ${{ matrix.feature-set }} --all-targets
+        elif [ "${{ matrix.feature-set }}" = "server" ]; then
+          cargo check --no-default-features --features server --all-targets
+        elif [ "${{ matrix.feature-set }}" = "client" ]; then
+          # Client-only build: only check lib, skip integration tests that require server modules
+          cargo check --no-default-features --features client --lib
         fi
 
   # Fast unit tests without database
@@ -97,8 +100,11 @@ jobs:
       run: |
         if [ "${{ matrix.feature-set }}" = "default" ]; then
           cargo test --lib --verbose
-        else
-          cargo test --no-default-features --features ${{ matrix.feature-set }} --lib --verbose
+        elif [ "${{ matrix.feature-set }}" = "server" ]; then
+          cargo test --no-default-features --features server --lib --verbose
+        elif [ "${{ matrix.feature-set }}" = "client" ]; then
+          # Client-only tests: only run lib tests, skip integration tests that require server modules
+          cargo test --no-default-features --features client --lib --verbose
         fi
 
   # Integration tests with database (only for server feature)
