@@ -18,8 +18,6 @@ mod launcher_test;
 
 // Server functionality modules (conditional compilation)
 #[cfg(feature = "server")]
-mod easytier_core_ffi;
-#[cfg(feature = "server")]
 pub mod client_manager;
 #[cfg(feature = "server")]
 pub mod config;
@@ -27,6 +25,8 @@ pub mod config;
 pub mod config_srv;
 #[cfg(feature = "server")]
 pub mod db;
+#[cfg(feature = "server")]
+mod easytier_core_ffi;
 #[cfg(feature = "server")]
 pub mod network_config_srv_ffi;
 
