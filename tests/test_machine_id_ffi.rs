@@ -34,7 +34,7 @@ mod machine_id_ffi_tests {
 
         let client_config = CortexWebClient {
             config_server_url: config_url.as_ptr(),
-            machine_id: std::ptr::null(),  // No machine_id provided
+            machine_id: std::ptr::null(), // No machine_id provided
         };
 
         assert!(!client_config.config_server_url.is_null());
@@ -45,9 +45,9 @@ mod machine_id_ffi_tests {
     fn test_uuid_parsing() {
         // Test UUID parsing with various formats
         let valid_uuids = vec![
-            "550e8400-e29b-41d4-a716-446655440000",  // Lowercase
-            "550E8400-E29B-41D4-A716-446655440000",  // Uppercase
-            "7c9e6679-7425-40de-944b-e07fc1f90ae7",  // Different UUID
+            "550e8400-e29b-41d4-a716-446655440000", // Lowercase
+            "550E8400-E29B-41D4-A716-446655440000", // Uppercase
+            "7c9e6679-7425-40de-944b-e07fc1f90ae7", // Different UUID
         ];
 
         for uuid_str in valid_uuids {
@@ -62,9 +62,9 @@ mod machine_id_ffi_tests {
         let invalid_uuids = vec![
             "not-a-uuid",
             "12345",
-            "550e8400-e29b-41d4-a716",  // Too short
-            // Note: "550e8400e29b41d4a716446655440000" (no dashes) is actually valid in Uuid::parse_str
-            // because the library accepts both formats
+            "550e8400-e29b-41d4-a716", // Too short
+                                       // Note: "550e8400e29b41d4a716446655440000" (no dashes) is actually valid in Uuid::parse_str
+                                       // because the library accepts both formats
         ];
 
         for uuid_str in invalid_uuids {
@@ -107,4 +107,3 @@ mod machine_id_persistence_tests {
         assert_eq!(original_uuid, final_uuid);
     }
 }
-

@@ -53,25 +53,26 @@ pub unsafe extern "C" fn cortex_start_web_client(client_config: *const CortexWeb
             return -1;
         }
     };
-    
+
     // Parse machine_id if provided
     let machine_id = if !config.machine_id.is_null() {
         match c_str_to_string(config.machine_id) {
-            Ok(id_str) => {
-                match uuid::Uuid::parse_str(&id_str) {
-                    Ok(id) => {
-                        info!("cortex_start_web_client: Using persistent machine_id: {}", id);
-                        Some(id)
-                    }
-                    Err(e) => {
-                        warn!(
+            Ok(id_str) => match uuid::Uuid::parse_str(&id_str) {
+                Ok(id) => {
+                    info!(
+                        "cortex_start_web_client: Using persistent machine_id: {}",
+                        id
+                    );
+                    Some(id)
+                }
+                Err(e) => {
+                    warn!(
                             "cortex_start_web_client: Invalid machine_id '{}': {}, using system default",
                             id_str, e
                         );
-                        None
-                    }
+                    None
                 }
-            }
+            },
             Err(e) => {
                 warn!(
                     "cortex_start_web_client: Failed to parse machine_id: {}, using system default",
@@ -134,8 +135,8 @@ pub unsafe extern "C" fn cortex_start_web_client(client_config: *const CortexWeb
         if let Some(mid) = machine_id {
             set_default_machine_id(Some(mid.to_string()));
             info!("cortex_start_web_client: Set default machine_id: {}", mid);
-        } 
-        
+        }
+
         // Create global context and configuration
         let config = TomlConfigLoader::default();
         let global_ctx = Arc::new(GlobalCtx::new(config));
@@ -438,7 +439,7 @@ mod tests {
 
         let config = CortexWebClient {
             config_server_url: cstr.as_ptr(),
-            machine_id: std::ptr::null(),  // Use system default for test
+            machine_id: std::ptr::null(), // Use system default for test
         };
 
         // Note: This test would require a mock server or would fail in real environment
