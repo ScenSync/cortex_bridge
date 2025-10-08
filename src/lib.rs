@@ -81,6 +81,7 @@ static ERROR_MSG: once_cell::sync::Lazy<Mutex<Vec<u8>>> =
 #[derive(Debug)]
 pub struct CortexWebClient {
     pub config_server_url: *const c_char,
+    pub machine_id: *const c_char, // Persistent device UUID for stable identity
 }
 
 #[repr(C)]
