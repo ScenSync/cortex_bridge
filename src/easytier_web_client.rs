@@ -4,6 +4,7 @@ use crate::{
 };
 use easytier::common::config::TomlConfigLoader;
 use easytier::common::global_ctx::GlobalCtx;
+use easytier::common::set_default_machine_id;
 use easytier::connector::create_connector_by_url;
 use easytier::tunnel::IpVersion;
 use easytier::web_client::WebClient;
@@ -52,6 +53,37 @@ pub unsafe extern "C" fn cortex_start_web_client(client_config: *const CortexWeb
             return -1;
         }
     };
+    
+    // Parse machine_id if provided
+    let machine_id = if !config.machine_id.is_null() {
+        match c_str_to_string(config.machine_id) {
+            Ok(id_str) => {
+                match uuid::Uuid::parse_str(&id_str) {
+                    Ok(id) => {
+                        info!("cortex_start_web_client: Using persistent machine_id: {}", id);
+                        Some(id)
+                    }
+                    Err(e) => {
+                        warn!(
+                            "cortex_start_web_client: Invalid machine_id '{}': {}, using system default",
+                            id_str, e
+                        );
+                        None
+                    }
+                }
+            }
+            Err(e) => {
+                warn!(
+                    "cortex_start_web_client: Failed to parse machine_id: {}, using system default",
+                    e
+                );
+                None
+            }
+        }
+    } else {
+        info!("cortex_start_web_client: No machine_id provided, using system default");
+        None
+    };
 
     // Create a new tokio runtime for async operations
     let runtime = match tokio::runtime::Runtime::new() {
@@ -98,6 +130,12 @@ pub unsafe extern "C" fn cortex_start_web_client(client_config: *const CortexWeb
             return Err("empty token".to_string());
         }
 
+        // Set machine_id globally if provided (uses EasyTier's built-in function)
+        if let Some(mid) = machine_id {
+            set_default_machine_id(Some(mid.to_string()));
+            info!("cortex_start_web_client: Set default machine_id: {}", mid);
+        } 
+        
         // Create global context and configuration
         let config = TomlConfigLoader::default();
         let global_ctx = Arc::new(GlobalCtx::new(config));
@@ -400,6 +438,7 @@ mod tests {
 
         let config = CortexWebClient {
             config_server_url: cstr.as_ptr(),
+            machine_id: std::ptr::null(),  // Use system default for test
         };
 
         // Note: This test would require a mock server or would fail in real environment
