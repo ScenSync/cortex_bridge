@@ -9,7 +9,7 @@ use uuid::Uuid;
 #[cfg(test)]
 mod machine_id_ffi_tests {
     use super::*;
-    use easytier_bridge::{cortex_start_web_client, cortex_stop_web_client, CortexWebClient};
+    use easytier_bridge::CortexWebClient;
 
     #[test]
     fn test_ffi_struct_with_machine_id() {
