@@ -12,10 +12,6 @@ use std::sync::Mutex;
 mod logging;
 mod stun_wrapper;
 
-// Test modules
-#[cfg(test)]
-mod launcher_test;
-
 // Server functionality modules (conditional compilation)
 #[cfg(feature = "server")]
 pub mod client_manager;

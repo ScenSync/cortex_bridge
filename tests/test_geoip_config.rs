@@ -7,9 +7,9 @@ use easytier_bridge::client_manager::ClientManager;
 use easytier_bridge::config::get_geoip_db_path;
 use std::path::Path;
 
-#[path = "test_common.rs"]
-mod test_common;
-use test_common::*;
+#[path = "common/mod.rs"]
+mod common;
+use common::*;
 
 #[tokio::test]
 async fn test_geoip_config_auto_detection() {

@@ -207,7 +207,7 @@ pub fn test_location_json() -> serde_json::Value {
 }
 
 /// Macro to setup test database for a test function
-#[macro_export]
+#[allow(unused_macros)]
 macro_rules! setup_test_db {
     () => {{
         let test_name = std::thread::current()
@@ -228,7 +228,7 @@ macro_rules! setup_test_db {
 }
 
 /// Macro to setup test database with a test organization
-#[macro_export]
+#[allow(unused_macros)]
 macro_rules! setup_test_db_with_org {
     () => {{
         let test_name = std::thread::current()

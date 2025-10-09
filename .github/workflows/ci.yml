@@ -33,28 +33,19 @@ jobs:
       with:
         components: rustfmt, clippy
 
-    - name: Cache cargo registry
+    - name: Cache cargo and build artifacts
       uses: actions/cache@v4
       with:
         path: |
-          ~/.cargo/registry/index
-          ~/.cargo/registry/cache
-          ~/.cargo/git/db
-        key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+          ~/.cargo/bin/
+          ~/.cargo/registry/index/
+          ~/.cargo/registry/cache/
+          ~/.cargo/git/db/
+          target/
+        key: ${{ runner.os }}-cargo-${{ matrix.feature-set }}-${{ hashFiles('**/Cargo.lock') }}
         restore-keys: |
-          ${{ runner.os }}-cargo-registry-
-
-    - name: Cache build artifacts
-      uses: actions/cache@v4
-      with:
-        path: |
-          target/debug/deps
-          target/debug/build
-          target/debug/.fingerprint
-        key: ${{ runner.os }}-quick-${{ matrix.feature-set }}-${{ hashFiles('**/Cargo.lock') }}-${{ hashFiles('**/*.rs') }}
-        restore-keys: |
-          ${{ runner.os }}-quick-${{ matrix.feature-set }}-${{ hashFiles('**/Cargo.lock') }}-
-          ${{ runner.os }}-quick-${{ matrix.feature-set }}-
+          ${{ runner.os }}-cargo-${{ matrix.feature-set }}-
+          ${{ runner.os }}-cargo-
 
     - name: Install system dependencies
       run: |
@@ -104,28 +95,19 @@ jobs:
     - name: Install Rust
       uses: dtolnay/rust-toolchain@stable
 
-    - name: Cache cargo registry
+    - name: Cache cargo and build artifacts
       uses: actions/cache@v4
       with:
         path: |
-          ~/.cargo/registry/index
-          ~/.cargo/registry/cache
-          ~/.cargo/git/db
-        key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+          ~/.cargo/bin/
+          ~/.cargo/registry/index/
+          ~/.cargo/registry/cache/
+          ~/.cargo/git/db/
+          target/
+        key: ${{ runner.os }}-cargo-${{ matrix.feature-set }}-${{ hashFiles('**/Cargo.lock') }}
         restore-keys: |
-          ${{ runner.os }}-cargo-registry-
-
-    - name: Cache build artifacts
-      uses: actions/cache@v4
-      with:
-        path: |
-          target/debug/deps
-          target/debug/build
-          target/debug/.fingerprint
-        key: ${{ runner.os }}-test-${{ matrix.feature-set }}-${{ hashFiles('**/Cargo.lock') }}-${{ hashFiles('**/*.rs') }}
-        restore-keys: |
-          ${{ runner.os }}-test-${{ matrix.feature-set }}-${{ hashFiles('**/Cargo.lock') }}-
-          ${{ runner.os }}-test-${{ matrix.feature-set }}-
+          ${{ runner.os }}-cargo-${{ matrix.feature-set }}-
+          ${{ runner.os }}-cargo-
 
     - name: Install system dependencies
       run: |
@@ -181,38 +163,31 @@ jobs:
     - name: Install Rust
       uses: dtolnay/rust-toolchain@stable
 
-    - name: Cache cargo registry and git
+    - name: Cache cargo and build artifacts
       uses: actions/cache@v4
       with:
         path: |
-          ~/.cargo/registry/index
-          ~/.cargo/registry/cache
-          ~/.cargo/git/db
-        key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+          ~/.cargo/bin/
+          ~/.cargo/registry/index/
+          ~/.cargo/registry/cache/
+          ~/.cargo/git/db/
+          target/
+        key: ${{ runner.os }}-cargo-integration-${{ hashFiles('**/Cargo.lock') }}
         restore-keys: |
-          ${{ runner.os }}-cargo-registry-
-
-    - name: Cache build artifacts
-      uses: actions/cache@v4
-      with:
-        path: |
-          target/debug/deps
-          target/debug/build
-          target/debug/.fingerprint
-        key: ${{ runner.os }}-integration-${{ hashFiles('**/Cargo.lock') }}-${{ hashFiles('**/*.rs') }}
-        restore-keys: |
-          ${{ runner.os }}-integration-${{ hashFiles('**/Cargo.lock') }}-
-          ${{ runner.os }}-integration-
+          ${{ runner.os }}-cargo-integration-
+          ${{ runner.os }}-cargo-
 
     - name: Install system dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y build-essential pkg-config libssl-dev protobuf-compiler
+        sudo apt-get install -y build-essential pkg-config libssl-dev protobuf-compiler lld
 
     - name: Run server integration tests
       run: cargo test --no-default-features --features server --verbose
       env:
         DATABASE_URL: mysql://root:root123@127.0.0.1:3306/easytier_bridge_test
+        CARGO_INCREMENTAL: 0
+        CARGO_BUILD_JOBS: 2
 
     - name: Clean build artifacts to save space
       run: |
@@ -222,9 +197,12 @@ jobs:
         df -h
 
     - name: Run full integration tests
-      run: cargo test --all-features --verbose
+      run: cargo test --all-features --verbose -- --test-threads=1
       env:
         DATABASE_URL: mysql://root:root123@127.0.0.1:3306/easytier_bridge_test
+        CARGO_INCREMENTAL: 0
+        CARGO_BUILD_JOBS: 2
+        RUSTFLAGS: "-C link-arg=-fuse-ld=lld"
 
   # C header generation (only run once)
   c-headers:
@@ -237,16 +215,18 @@ jobs:
     - name: Install Rust
       uses: dtolnay/rust-toolchain@stable
 
-    - name: Cache cargo dependencies
+    - name: Cache cargo and build artifacts
       uses: actions/cache@v4
       with:
         path: |
-          ~/.cargo/registry
-          ~/.cargo/git
-          target/debug/deps
-          target/debug/build
-        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          ~/.cargo/bin/
+          ~/.cargo/registry/index/
+          ~/.cargo/registry/cache/
+          ~/.cargo/git/db/
+          target/
+        key: ${{ runner.os }}-cargo-headers-${{ hashFiles('**/Cargo.lock') }}
         restore-keys: |
+          ${{ runner.os }}-cargo-headers-
           ${{ runner.os }}-cargo-
 
     - name: Install system dependencies
@@ -295,29 +275,19 @@ jobs:
       with:
         components: llvm-tools-preview
 
-    - name: Cache cargo registry and git
+    - name: Cache cargo and build artifacts
       uses: actions/cache@v4
       with:
         path: |
-          ~/.cargo/registry/index
-          ~/.cargo/registry/cache
-          ~/.cargo/git/db
-        key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+          ~/.cargo/bin/
+          ~/.cargo/registry/index/
+          ~/.cargo/registry/cache/
+          ~/.cargo/git/db/
+          target/
+        key: ${{ runner.os }}-cargo-coverage-${{ hashFiles('**/Cargo.lock') }}
         restore-keys: |
-          ${{ runner.os }}-cargo-registry-
-
-    - name: Cache coverage build artifacts
-      uses: actions/cache@v4
-      with:
-        path: |
-          target/llvm-cov-target
-          target/debug/deps
-          target/debug/build
-          target/debug/.fingerprint
-        key: ${{ runner.os }}-coverage-${{ hashFiles('**/Cargo.lock') }}-${{ hashFiles('**/*.rs') }}
-        restore-keys: |
-          ${{ runner.os }}-coverage-${{ hashFiles('**/Cargo.lock') }}-
-          ${{ runner.os }}-coverage-
+          ${{ runner.os }}-cargo-coverage-
+          ${{ runner.os }}-cargo-
 
     - name: Install system dependencies
       run: |

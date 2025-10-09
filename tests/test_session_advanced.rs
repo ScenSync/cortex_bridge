@@ -15,9 +15,9 @@ use std::str::FromStr;
 use std::sync::Arc;
 use url::Url;
 
-#[path = "test_common.rs"]
-mod test_common;
-use test_common::*;
+#[path = "common/mod.rs"]
+mod common;
+use common::*;
 
 #[tokio::test]
 async fn test_session_data_creation() {

@@ -21,9 +21,9 @@ fn init_tracing() {
     });
 }
 
-#[path = "test_common.rs"]
-mod test_common;
-use test_common::*;
+#[path = "common/mod.rs"]
+mod common;
+use common::*;
 
 #[tokio::test]
 async fn test_storage_initialization_and_basic_operations() {
