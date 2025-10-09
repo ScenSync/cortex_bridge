@@ -20,14 +20,12 @@ impl MigrationTrait for Migration {
                                 Alias::new("device_status"),
                                 [
                                     Alias::new("pending"),
-                                    Alias::new("approved"),
                                     Alias::new("rejected"),
-                                    Alias::new("available"),
+                                    Alias::new("online"),
+                                    Alias::new("offline"),
                                     Alias::new("busy"),
                                     Alias::new("maintenance"),
-                                    Alias::new("offline"),
-                                    Alias::new("connecting"),
-                                    Alias::new("network_error"),
+                                    Alias::new("disabled"),
                                 ],
                             )
                             .not_null()
@@ -37,14 +35,15 @@ impl MigrationTrait for Migration {
             )
             .await?;
 
-        // Update existing records to map legacy statuses to approved workflow
+        // Update existing records to map legacy statuses to new model
+        // Note: This migration maps old statuses to online, but doesn't check heartbeat
+        // The heartbeat check will happen on next device heartbeat
         let update_stmt = Query::update()
             .table(Devices::Table)
-            .value(Devices::Status, "approved")
+            .value(Devices::Status, "online")
             .and_where(Expr::col(Devices::Status).is_in([
+                "approved",
                 "available",
-                "busy",
-                "maintenance",
                 "connecting",
             ]))
             .to_owned();

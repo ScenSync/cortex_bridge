@@ -43,7 +43,7 @@ async fn test_only_approved_devices_marked_offline_on_timeout() {
             serial_number: Set(approved_device_id.to_string()),
             device_type: Set(devices::DeviceType::Robot),
             organization_id: Set(Some(org_id.clone())),
-            status: Set(devices::DeviceStatus::Approved),
+            status: Set(devices::DeviceStatus::Online),
             last_heartbeat: Set(Some(old_time.into())),
             created_at: Set(Utc::now().into()),
             updated_at: Set(Utc::now().into()),
@@ -99,7 +99,7 @@ async fn test_only_approved_devices_marked_offline_on_timeout() {
         let offline_devices = devices::Entity::find()
             .filter(devices::Column::LastHeartbeat.lt(cutoff_time))
             .filter(devices::Column::Status.ne(devices::DeviceStatus::Offline))
-            .filter(devices::Column::Status.eq(devices::DeviceStatus::Approved)) // NEW: Only approved devices
+            .filter(devices::Column::Status.eq(devices::DeviceStatus::Online)) // NEW: Only approved devices
             .all(storage.db().orm())
             .await
             .unwrap();
@@ -207,7 +207,7 @@ async fn test_pending_device_maintains_status_without_heartbeat() {
         let offline_devices = devices::Entity::find()
             .filter(devices::Column::LastHeartbeat.lt(cutoff_time))
             .filter(devices::Column::Status.ne(devices::DeviceStatus::Offline))
-            .filter(devices::Column::Status.eq(devices::DeviceStatus::Approved)) // Only approved
+            .filter(devices::Column::Status.eq(devices::DeviceStatus::Online)) // Only approved
             .all(storage.db().orm())
             .await
             .unwrap();
@@ -289,7 +289,7 @@ async fn test_rejected_device_maintains_status_without_heartbeat() {
         let offline_devices = devices::Entity::find()
             .filter(devices::Column::LastHeartbeat.lt(cutoff_time))
             .filter(devices::Column::Status.ne(devices::DeviceStatus::Offline))
-            .filter(devices::Column::Status.eq(devices::DeviceStatus::Approved)) // Only approved
+            .filter(devices::Column::Status.eq(devices::DeviceStatus::Online)) // Only approved
             .all(storage.db().orm())
             .await
             .unwrap();
@@ -347,7 +347,7 @@ async fn test_approved_offline_reconnect_workflow() {
             serial_number: Set(device_id.to_string()),
             device_type: Set(devices::DeviceType::Robot),
             organization_id: Set(Some(org_id.clone())),
-            status: Set(devices::DeviceStatus::Approved),
+            status: Set(devices::DeviceStatus::Online),
             last_heartbeat: Set(Some(Utc::now().into())),
             created_at: Set(Utc::now().into()),
             updated_at: Set(Utc::now().into()),
@@ -383,7 +383,7 @@ async fn test_approved_offline_reconnect_workflow() {
         let offline_devices = devices::Entity::find()
             .filter(devices::Column::LastHeartbeat.lt(cutoff_time))
             .filter(devices::Column::Status.ne(devices::DeviceStatus::Offline))
-            .filter(devices::Column::Status.eq(devices::DeviceStatus::Approved))
+            .filter(devices::Column::Status.eq(devices::DeviceStatus::Online))
             .all(storage.db().orm())
             .await
             .unwrap();
@@ -454,7 +454,7 @@ async fn test_approved_offline_reconnect_workflow() {
 
         assert_eq!(
             device.status,
-            devices::DeviceStatus::Approved,
+            devices::DeviceStatus::Online,
             "Offline device should become approved again when reconnecting"
         );
         assert!(device.last_heartbeat.is_some());

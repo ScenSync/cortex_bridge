@@ -38,7 +38,7 @@ async fn test_device_status_preservation_on_heartbeat() {
             serial_number: Set(device_id.to_string()),
             device_type: Set(devices::DeviceType::Robot),
             organization_id: Set(Some(org_id.clone())),
-            status: Set(devices::DeviceStatus::Approved), // Start with approved status
+            status: Set(devices::DeviceStatus::Online), // Start with approved status
             last_heartbeat: Set(Some(Utc::now().into())),
             created_at: Set(Utc::now().into()),
             updated_at: Set(Utc::now().into()),
@@ -93,7 +93,7 @@ async fn test_device_status_preservation_on_heartbeat() {
             .unwrap()
             .unwrap();
 
-        assert_eq!(device.status, devices::DeviceStatus::Approved);
+        assert_eq!(device.status, devices::DeviceStatus::Online);
         assert!(device.last_heartbeat.is_some());
     }
 
@@ -261,7 +261,7 @@ async fn test_device_status_transition_offline_to_approved() {
             .unwrap()
             .unwrap();
 
-        assert_eq!(device.status, devices::DeviceStatus::Approved);
+        assert_eq!(device.status, devices::DeviceStatus::Online);
         assert!(device.last_heartbeat.is_some());
     }
 
@@ -291,7 +291,7 @@ async fn test_device_timeout_marking_offline() {
             serial_number: Set(device_id_1.to_string()),
             device_type: Set(devices::DeviceType::Robot),
             organization_id: Set(Some(org_id.clone())),
-            status: Set(devices::DeviceStatus::Approved),
+            status: Set(devices::DeviceStatus::Online),
             last_heartbeat: Set(Some(Utc::now().into())), // Recent heartbeat
             created_at: Set(Utc::now().into()),
             updated_at: Set(Utc::now().into()),
@@ -306,7 +306,7 @@ async fn test_device_timeout_marking_offline() {
             serial_number: Set(device_id_2.to_string()),
             device_type: Set(devices::DeviceType::Robot),
             organization_id: Set(Some(org_id.clone())),
-            status: Set(devices::DeviceStatus::Approved),
+            status: Set(devices::DeviceStatus::Online),
             last_heartbeat: Set(Some(old_time.into())), // Old heartbeat
             created_at: Set(Utc::now().into()),
             updated_at: Set(Utc::now().into()),
@@ -341,7 +341,7 @@ async fn test_device_timeout_marking_offline() {
             .unwrap()
             .unwrap();
 
-        assert_eq!(device1.status, devices::DeviceStatus::Approved);
+        assert_eq!(device1.status, devices::DeviceStatus::Online);
 
         // Check device 2 (old heartbeat) - should be marked offline
         let device2 = devices::Entity::find()
@@ -353,7 +353,7 @@ async fn test_device_timeout_marking_offline() {
 
         // Note: The timeout task runs every 60 seconds, so we need to manually trigger it
         // For this test, we'll just verify the setup is correct
-        assert_eq!(device2.status, devices::DeviceStatus::Approved); // Before timeout
+        assert_eq!(device2.status, devices::DeviceStatus::Online); // Before timeout
         assert!(device2.last_heartbeat.unwrap() < Utc::now() - chrono::Duration::seconds(60));
     }
 
@@ -446,7 +446,7 @@ async fn test_device_status_preservation_during_edit() {
             serial_number: Set(device_id.to_string()),
             device_type: Set(devices::DeviceType::Robot),
             organization_id: Set(Some(org_id.clone())),
-            status: Set(devices::DeviceStatus::Approved), // Start with approved status
+            status: Set(devices::DeviceStatus::Online), // Start with approved status
             last_heartbeat: Set(Some(Utc::now().into())),
             created_at: Set(Utc::now().into()),
             updated_at: Set(Utc::now().into()),
@@ -488,7 +488,7 @@ async fn test_device_status_preservation_during_edit() {
             .unwrap();
 
         // Status should still be approved (not changed to offline)
-        assert_eq!(device.status, devices::DeviceStatus::Approved);
+        assert_eq!(device.status, devices::DeviceStatus::Online);
         assert_eq!(device.name, "Updated Name"); // Name should be updated
     }
 
@@ -505,8 +505,8 @@ async fn test_device_status_enum_methods() {
     use easytier_bridge::db::entities::devices::DeviceStatus;
 
     // Test is_approved method
-    assert!(DeviceStatus::Approved.is_approved());
-    assert!(DeviceStatus::Available.is_approved());
+    assert!(DeviceStatus::Online.is_approved());
+    assert!(DeviceStatus::Online.is_approved());
     assert!(DeviceStatus::Busy.is_approved());
     assert!(DeviceStatus::Maintenance.is_approved());
     assert!(!DeviceStatus::Pending.is_approved());
@@ -515,18 +515,18 @@ async fn test_device_status_enum_methods() {
 
     // Test is_pending method
     assert!(DeviceStatus::Pending.is_pending());
-    assert!(!DeviceStatus::Approved.is_pending());
+    assert!(!DeviceStatus::Online.is_pending());
     assert!(!DeviceStatus::Rejected.is_pending());
     assert!(!DeviceStatus::Offline.is_pending());
 
     // Test is_rejected method
     assert!(DeviceStatus::Rejected.is_rejected());
-    assert!(!DeviceStatus::Approved.is_rejected());
+    assert!(!DeviceStatus::Online.is_rejected());
     assert!(!DeviceStatus::Pending.is_rejected());
     assert!(!DeviceStatus::Offline.is_rejected());
 
     // Test is_online method
-    assert!(DeviceStatus::Approved.is_online());
+    assert!(DeviceStatus::Online.is_online());
     assert!(DeviceStatus::Pending.is_online());
     assert!(DeviceStatus::Rejected.is_online());
     assert!(!DeviceStatus::Offline.is_online());
@@ -555,7 +555,7 @@ async fn test_concurrent_heartbeat_handling() {
             serial_number: Set(device_id.to_string()),
             device_type: Set(devices::DeviceType::Robot),
             organization_id: Set(Some(org_id.clone())),
-            status: Set(devices::DeviceStatus::Approved),
+            status: Set(devices::DeviceStatus::Online),
             last_heartbeat: Set(Some(Utc::now().into())),
             created_at: Set(Utc::now().into()),
             updated_at: Set(Utc::now().into()),
@@ -617,7 +617,7 @@ async fn test_concurrent_heartbeat_handling() {
             .unwrap()
             .unwrap();
 
-        assert_eq!(device.status, devices::DeviceStatus::Approved);
+        assert_eq!(device.status, devices::DeviceStatus::Online);
         assert!(device.last_heartbeat.is_some());
     }
 

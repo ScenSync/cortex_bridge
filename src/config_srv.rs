@@ -202,7 +202,7 @@ impl NetworkConfigService {
                     serial_number: Set(device_id.to_string()),
                     device_type: Set(devices::DeviceType::Robot),
                     model: Set(Some("Unknown".to_string())),
-                    status: Set(devices::DeviceStatus::Available),
+                    status: Set(devices::DeviceStatus::Online),
                     capabilities: Set(Some(serde_json::json!("network"))),
                     network_instance_id: Set(Some(inst_id.to_string())),
                     network_config: Set(Some(serde_json::to_value(&config)?)),

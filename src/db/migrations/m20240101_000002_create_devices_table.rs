@@ -41,14 +41,12 @@ impl MigrationTrait for Migration {
                                 Alias::new("device_status"),
                                 [
                                     Alias::new("pending"),
-                                    Alias::new("approved"),
                                     Alias::new("rejected"),
-                                    Alias::new("available"),
+                                    Alias::new("online"),
+                                    Alias::new("offline"),
                                     Alias::new("busy"),
                                     Alias::new("maintenance"),
-                                    Alias::new("offline"),
-                                    Alias::new("connecting"),
-                                    Alias::new("network_error"),
+                                    Alias::new("disabled"),
                                 ],
                             )
                             .not_null()

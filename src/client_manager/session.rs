@@ -230,22 +230,21 @@ impl SessionRpcService {
                         active.status = Set(devices::DeviceStatus::Pending);
                         devices::DeviceStatus::Pending
                     }
-                    // If device is offline, restore it to approved status when it reconnects
-                    // Note: Only approved devices are marked as offline on timeout, so this is safe
+                    // If device is offline, restore it to online status when it reconnects
+                    // Note: Only approved devices (online/offline/busy/maintenance) are marked as offline on timeout
                     devices::DeviceStatus::Offline => {
-                        crate::info!("[SESSION_RPC] Offline device {} reconnected, restoring to approved status", device_id_str);
-                        active.status = Set(devices::DeviceStatus::Approved);
-                        devices::DeviceStatus::Approved
+                        crate::info!("[SESSION_RPC] Offline device {} reconnected, restoring to online status", device_id_str);
+                        active.status = Set(devices::DeviceStatus::Online);
+                        devices::DeviceStatus::Online
                     }
-                    // For other statuses (pending, approved, etc.), keep the existing status
+                    // For other statuses, keep the existing status
                     _ => {
-                        // Only update to approved if device is pending and has been approved by admin
-                        // This preserves the admin's approval decision
+                        // Preserve current status (pending waits for admin, online/busy/maintenance preserved)
                         if device.status.is_pending() {
                             // Keep pending status - admin needs to explicitly approve
                             device.status
                         } else {
-                            // For approved devices, ensure they stay approved when heartbeat comes in
+                            // For other statuses, preserve them when heartbeat comes in
                             device.status
                         }
                     }
