@@ -3,8 +3,8 @@
 //! 这个模块提供了一个测试，它会在所有其他测试完成后运行
 //! 用于清理测试过程中创建的所有数据库
 
-#[path = "test_common.rs"]
-mod test_common;
+#[path = "common/mod.rs"]
+mod common;
 
 #[tokio::test]
 #[serial_test::serial]
@@ -14,7 +14,7 @@ async fn cleanup_all_test_databases() {
 
     println!("开始清理所有测试数据库...");
 
-    match test_common::drop_all_test_databases().await {
+    match common::drop_all_test_databases().await {
         Ok(_) => println!("所有测试数据库已清理完成"),
         Err(e) => println!("清理测试数据库时出错: {}", e),
     }

@@ -8,10 +8,9 @@ use url::Url;
 // Removed unused imports: Database, Uuid
 // Tracing initialization removed as it was unused
 
-#[path = "test_common.rs"]
-mod test_common;
-
-use test_common::*;
+#[path = "common/mod.rs"]
+mod common;
+use common::*;
 
 #[tokio::test]
 async fn test_client_manager_initialization() {
