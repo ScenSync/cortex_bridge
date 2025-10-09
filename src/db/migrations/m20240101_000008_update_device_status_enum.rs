@@ -41,11 +41,7 @@ impl MigrationTrait for Migration {
         let update_stmt = Query::update()
             .table(Devices::Table)
             .value(Devices::Status, "online")
-            .and_where(Expr::col(Devices::Status).is_in([
-                "approved",
-                "available",
-                "connecting",
-            ]))
+            .and_where(Expr::col(Devices::Status).is_in(["approved", "available", "connecting"]))
             .to_owned();
 
         manager.exec_stmt(update_stmt).await?;
