@@ -473,15 +473,23 @@ impl ClientManager {
 
         let cutoff_time = chrono::Utc::now() - chrono::Duration::seconds(60);
 
-        // Find devices that haven't sent heartbeat recently and are not already offline
+        crate::debug!(
+            "[CLIENT_MANAGER] Checking for offline devices, cutoff_time: {:?}",
+            cutoff_time
+        );
+
+        // Find devices that haven't sent heartbeat recently and are approved but not already offline
+        // Only mark approved devices as offline - pending/rejected devices should maintain their status
         let offline_devices = devices::Entity::find()
             .filter(devices::Column::LastHeartbeat.lt(cutoff_time))
             .filter(devices::Column::Status.ne(devices::DeviceStatus::Offline))
+            .filter(devices::Column::Status.eq(devices::DeviceStatus::Approved))
             .all(storage.db().orm())
             .await
             .with_context(|| "Failed to query devices for timeout check")?;
 
         if offline_devices.is_empty() {
+            crate::debug!("[CLIENT_MANAGER] No devices to mark as offline");
             return Ok(());
         }
 
@@ -489,6 +497,17 @@ impl ClientManager {
             "[CLIENT_MANAGER] Marking {} devices as offline due to timeout",
             offline_devices.len()
         );
+
+        // Log each device being marked offline
+        for device in &offline_devices {
+            crate::info!(
+                "[CLIENT_MANAGER] Device {} ({}) last_heartbeat: {:?}, status: {:?}",
+                device.id,
+                device.name,
+                device.last_heartbeat,
+                device.status
+            );
+        }
 
         // Mark each device as offline
         for device in offline_devices {

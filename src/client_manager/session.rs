@@ -206,7 +206,7 @@ impl SessionRpcService {
 
         let device_id_str = device_id.to_string();
 
-        // Try to find existing device
+        // Try to find existing device (SeaORM automatically filters soft-deleted records)
         let existing = devices::Entity::find()
             .filter(devices::Column::Id.eq(&device_id_str))
             .filter(devices::Column::OrganizationId.eq(organization_id))
@@ -224,16 +224,16 @@ impl SessionRpcService {
                 // Handle status transitions based on current status
                 let new_status = match device.status {
                     // If device is rejected, change status back to pending when it reconnects
+                    // This gives the device another chance to be approved by admin
                     devices::DeviceStatus::Rejected => {
                         crate::info!("[SESSION_RPC] Rejected device {} reconnected, changing status to pending", device_id_str);
                         active.status = Set(devices::DeviceStatus::Pending);
                         devices::DeviceStatus::Pending
                     }
-                    // If device is offline, change status back to approved when it reconnects (if it was previously approved)
+                    // If device is offline, restore it to approved status when it reconnects
+                    // Note: Only approved devices are marked as offline on timeout, so this is safe
                     devices::DeviceStatus::Offline => {
-                        // Check if device was previously approved by looking at other fields
-                        // For now, assume if it has organization_id and is not rejected, it should be approved
-                        crate::info!("[SESSION_RPC] Offline device {} reconnected, changing status to approved", device_id_str);
+                        crate::info!("[SESSION_RPC] Offline device {} reconnected, restoring to approved status", device_id_str);
                         active.status = Set(devices::DeviceStatus::Approved);
                         devices::DeviceStatus::Approved
                     }
@@ -263,32 +263,95 @@ impl SessionRpcService {
                 Ok(new_status)
             }
             None => {
-                // Create new device with pending status
-                let new_device = devices::ActiveModel {
-                    id: Set(device_id_str.clone()),
-                    name: Set(req.hostname.clone()),
-                    serial_number: Set(req.hostname.clone()), // Use hostname as serial for now
-                    device_type: Set(devices::DeviceType::Robot), // Default to robot
-                    organization_id: Set(Some(organization_id.to_string())),
-                    status: Set(devices::DeviceStatus::Pending),
-                    last_heartbeat: Set(Some(chrono::Utc::now().into())),
-                    created_at: Set(chrono::Utc::now().into()),
-                    updated_at: Set(chrono::Utc::now().into()),
-                    ..Default::default()
-                };
-
-                new_device
-                    .insert(storage.db().orm())
+                // Device not found by device_id, check if a device with same serial_number exists
+                // This handles the case where device was rejected/deleted and is rejoining
+                let existing_by_serial = devices::Entity::find()
+                    .filter(devices::Column::SerialNumber.eq(&req.hostname))
+                    .filter(devices::Column::OrganizationId.eq(organization_id))
+                    .one(storage.db().orm())
                     .await
                     .with_context(|| {
-                        format!("Failed to create device record: {}", device_id_str)
+                        format!("Failed to query device by serial_number: {}", req.hostname)
                     })?;
 
-                crate::info!(
-                    "[SESSION_RPC] Created new device record: {}, status: pending",
-                    device_id_str
-                );
-                Ok(devices::DeviceStatus::Pending)
+                match existing_by_serial {
+                    Some(old_device) => {
+                        // Device exists with same serial_number but different device_id
+                        // Delete old record and create new one with updated device_id
+                        crate::info!(
+                            "[SESSION_RPC] Found existing device with serial_number: {}, replacing device_id from {} to {}",
+                            req.hostname,
+                            old_device.id,
+                            device_id_str
+                        );
+
+                        // Delete the old device record
+                        devices::Entity::delete_by_id(old_device.id.clone())
+                            .exec(storage.db().orm())
+                            .await
+                            .with_context(|| {
+                                format!("Failed to delete old device record: {}", old_device.id)
+                            })?;
+
+                        // Create new device record with new device_id
+                        let new_device = devices::ActiveModel {
+                            id: Set(device_id_str.clone()),
+                            name: Set(req.hostname.clone()),
+                            serial_number: Set(req.hostname.clone()),
+                            device_type: Set(old_device.device_type),
+                            organization_id: Set(Some(organization_id.to_string())),
+                            status: Set(devices::DeviceStatus::Pending),
+                            last_heartbeat: Set(Some(chrono::Utc::now().into())),
+                            created_at: Set(chrono::Utc::now().into()),
+                            updated_at: Set(chrono::Utc::now().into()),
+                            ..Default::default()
+                        };
+
+                        new_device
+                            .insert(storage.db().orm())
+                            .await
+                            .with_context(|| {
+                                format!(
+                                    "Failed to create device record with new device_id: {}",
+                                    device_id_str
+                                )
+                            })?;
+
+                        crate::info!(
+                            "[SESSION_RPC] Replaced device record with new device_id: {}, status: pending",
+                            device_id_str
+                        );
+                        Ok(devices::DeviceStatus::Pending)
+                    }
+                    None => {
+                        // No existing device with this serial_number, create new one
+                        let new_device = devices::ActiveModel {
+                            id: Set(device_id_str.clone()),
+                            name: Set(req.hostname.clone()),
+                            serial_number: Set(req.hostname.clone()), // Use hostname as serial for now
+                            device_type: Set(devices::DeviceType::Robot), // Default to robot
+                            organization_id: Set(Some(organization_id.to_string())),
+                            status: Set(devices::DeviceStatus::Pending),
+                            last_heartbeat: Set(Some(chrono::Utc::now().into())),
+                            created_at: Set(chrono::Utc::now().into()),
+                            updated_at: Set(chrono::Utc::now().into()),
+                            ..Default::default()
+                        };
+
+                        new_device
+                            .insert(storage.db().orm())
+                            .await
+                            .with_context(|| {
+                                format!("Failed to create device record: {}", device_id_str)
+                            })?;
+
+                        crate::info!(
+                            "[SESSION_RPC] Created new device record: {}, status: pending",
+                            device_id_str
+                        );
+                        Ok(devices::DeviceStatus::Pending)
+                    }
+                }
             }
         }
     }
