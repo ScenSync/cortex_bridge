@@ -505,13 +505,15 @@ async fn test_device_status_enum_methods() {
     use easytier_bridge::db::entities::devices::DeviceStatus;
 
     // Test is_approved method
+    // Approved states: Online, Offline, Busy, Maintenance (all post-approval states)
     assert!(DeviceStatus::Online.is_approved());
-    assert!(DeviceStatus::Online.is_approved());
+    assert!(DeviceStatus::Offline.is_approved()); // Offline is approved but not connected
     assert!(DeviceStatus::Busy.is_approved());
     assert!(DeviceStatus::Maintenance.is_approved());
+    // Not approved: Pending, Rejected, Disabled
     assert!(!DeviceStatus::Pending.is_approved());
     assert!(!DeviceStatus::Rejected.is_approved());
-    assert!(!DeviceStatus::Offline.is_approved());
+    assert!(!DeviceStatus::Disabled.is_approved());
 
     // Test is_pending method
     assert!(DeviceStatus::Pending.is_pending());
@@ -526,10 +528,14 @@ async fn test_device_status_enum_methods() {
     assert!(!DeviceStatus::Offline.is_rejected());
 
     // Test is_online method
+    // Only Online and Busy are considered "online" (actively connected and available)
     assert!(DeviceStatus::Online.is_online());
-    assert!(DeviceStatus::Pending.is_online());
-    assert!(DeviceStatus::Rejected.is_online());
+    assert!(DeviceStatus::Busy.is_online());
+    assert!(!DeviceStatus::Pending.is_online());
+    assert!(!DeviceStatus::Rejected.is_online());
     assert!(!DeviceStatus::Offline.is_online());
+    assert!(!DeviceStatus::Maintenance.is_online());
+    assert!(!DeviceStatus::Disabled.is_online());
 
     cleanup_test_database(&db).await.unwrap();
 }

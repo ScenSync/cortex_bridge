@@ -9,12 +9,16 @@ on:
 env:
   CARGO_TERM_COLOR: always
   RUST_BACKTRACE: 1
+  CARGO_INCREMENTAL: 0  # Disable incremental compilation for better caching
+  CARGO_NET_RETRY: 10
+  RUSTUP_MAX_RETRIES: 10
 
 jobs:
   # Fast jobs that don't need database
   quick-checks:
     name: Quick Checks (Format, Clippy, Build)
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     strategy:
       matrix:
         feature-set: ["server", "client", "default"]
@@ -23,10 +27,7 @@ jobs:
 
     - name: Free up disk space
       run: |
-        sudo rm -rf /usr/share/dotnet
-        sudo rm -rf /usr/local/lib/android
-        sudo rm -rf /opt/ghc
-        sudo docker image prune --all --force
+        sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc &
 
     - name: Install Rust
       uses: dtolnay/rust-toolchain@stable
@@ -50,7 +51,18 @@ jobs:
     - name: Install system dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y build-essential pkg-config libssl-dev protobuf-compiler
+        sudo apt-get install -y build-essential pkg-config libssl-dev protobuf-compiler clang mold
+
+    - name: Setup sccache
+      uses: mozilla-actions/sccache-action@v0.0.4
+
+    - name: Configure build environment
+      run: |
+        echo "SCCACHE_GHA_ENABLED=true" >> $GITHUB_ENV
+        echo "RUSTC_WRAPPER=sccache" >> $GITHUB_ENV
+        echo "[target.x86_64-unknown-linux-gnu]" > ~/.cargo/config.toml
+        echo "linker = \"clang\"" >> ~/.cargo/config.toml
+        echo "rustflags = [\"-C\", \"link-arg=-fuse-ld=/usr/bin/mold\"]" >> ~/.cargo/config.toml
 
     - name: Check formatting
       if: matrix.feature-set == 'default'
@@ -79,6 +91,7 @@ jobs:
   unit-tests:
     name: Unit Tests (No Database)
     runs-on: ubuntu-latest
+    timeout-minutes: 25
     strategy:
       matrix:
         feature-set: ["server", "client", "default"]
@@ -87,10 +100,7 @@ jobs:
 
     - name: Free up disk space
       run: |
-        sudo rm -rf /usr/share/dotnet
-        sudo rm -rf /usr/local/lib/android
-        sudo rm -rf /opt/ghc
-        sudo docker image prune --all --force
+        sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc &
 
     - name: Install Rust
       uses: dtolnay/rust-toolchain@stable
@@ -112,23 +122,35 @@ jobs:
     - name: Install system dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y build-essential pkg-config libssl-dev protobuf-compiler
+        sudo apt-get install -y build-essential pkg-config libssl-dev protobuf-compiler clang mold
+
+    - name: Setup sccache
+      uses: mozilla-actions/sccache-action@v0.0.4
+
+    - name: Configure build environment
+      run: |
+        echo "SCCACHE_GHA_ENABLED=true" >> $GITHUB_ENV
+        echo "RUSTC_WRAPPER=sccache" >> $GITHUB_ENV
+        echo "[target.x86_64-unknown-linux-gnu]" > ~/.cargo/config.toml
+        echo "linker = \"clang\"" >> ~/.cargo/config.toml
+        echo "rustflags = [\"-C\", \"link-arg=-fuse-ld=/usr/bin/mold\"]" >> ~/.cargo/config.toml
 
     - name: Run unit tests
       run: |
         if [ "${{ matrix.feature-set }}" = "default" ]; then
-          cargo test --lib --verbose
+          cargo test --lib
         elif [ "${{ matrix.feature-set }}" = "server" ]; then
-          cargo test --no-default-features --features server --lib --verbose
+          cargo test --no-default-features --features server --lib
         elif [ "${{ matrix.feature-set }}" = "client" ]; then
           # Client-only tests: only run lib tests, skip integration tests that require server modules
-          cargo test --no-default-features --features client --lib --verbose
+          cargo test --no-default-features --features client --lib
         fi
 
   # Integration tests with database (only for server feature)
   integration-tests:
     name: Integration Tests (With Database)
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     needs: [quick-checks, unit-tests]  # Wait for fast jobs first
     services:
       mysql:
@@ -180,34 +202,30 @@ jobs:
     - name: Install system dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y build-essential pkg-config libssl-dev protobuf-compiler lld
+        sudo apt-get install -y build-essential pkg-config libssl-dev protobuf-compiler clang mold
 
-    - name: Run server integration tests
-      run: cargo test --no-default-features --features server --verbose
-      env:
-        DATABASE_URL: mysql://root:root123@127.0.0.1:3306/easytier_bridge_test
-        CARGO_INCREMENTAL: 0
-        CARGO_BUILD_JOBS: 2
-
-    - name: Clean build artifacts to save space
+    - name: Setup sccache
+      uses: mozilla-actions/sccache-action@v0.0.4
+        
+    - name: Configure build environment
       run: |
-        cargo clean --release
-        rm -rf target/debug/incremental
-        echo "Disk space after cleaning:"
-        df -h
+        echo "SCCACHE_GHA_ENABLED=true" >> $GITHUB_ENV
+        echo "RUSTC_WRAPPER=sccache" >> $GITHUB_ENV
+        echo "[target.x86_64-unknown-linux-gnu]" > ~/.cargo/config.toml
+        echo "linker = \"clang\"" >> ~/.cargo/config.toml
+        echo "rustflags = [\"-C\", \"link-arg=-fuse-ld=/usr/bin/mold\"]" >> ~/.cargo/config.toml
+        cat ~/.cargo/config.toml
 
-    - name: Run full integration tests
-      run: cargo test --all-features --verbose -- --test-threads=1
+    - name: Run integration tests
+      run: cargo test --all-features -- --test-threads=2
       env:
         DATABASE_URL: mysql://root:root123@127.0.0.1:3306/easytier_bridge_test
-        CARGO_INCREMENTAL: 0
-        CARGO_BUILD_JOBS: 2
-        RUSTFLAGS: "-C link-arg=-fuse-ld=lld"
 
   # C header generation (only run once)
   c-headers:
     name: Generate C Headers
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     needs: quick-checks  # Wait for format/clippy checks
     steps:
     - uses: actions/checkout@v4
@@ -233,7 +251,13 @@ jobs:
       run: |
         sudo apt-get update
         sudo apt-get install -y build-essential pkg-config libssl-dev protobuf-compiler
-        cargo install cbindgen --force
+
+    - name: Install cbindgen
+      run: |
+        # Try to use cached version first
+        if ! command -v cbindgen &> /dev/null; then
+          cargo install cbindgen --locked
+        fi
 
     - name: Generate C headers
       run: |
@@ -292,7 +316,18 @@ jobs:
     - name: Install system dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y build-essential pkg-config libssl-dev protobuf-compiler
+        sudo apt-get install -y build-essential pkg-config libssl-dev protobuf-compiler clang mold
+
+    - name: Setup sccache
+      uses: mozilla-actions/sccache-action@v0.0.4
+
+    - name: Configure build environment
+      run: |
+        echo "SCCACHE_GHA_ENABLED=true" >> $GITHUB_ENV
+        echo "RUSTC_WRAPPER=sccache" >> $GITHUB_ENV
+        echo "[target.x86_64-unknown-linux-gnu]" > ~/.cargo/config.toml
+        echo "linker = \"clang\"" >> ~/.cargo/config.toml
+        echo "rustflags = [\"-C\", \"link-arg=-fuse-ld=/usr/bin/mold\"]" >> ~/.cargo/config.toml
 
     - name: Install cargo-llvm-cov
       uses: taiki-e/install-action@cargo-llvm-cov
@@ -300,12 +335,10 @@ jobs:
     - name: Generate code coverage
       env:
         DATABASE_URL: mysql://root:root123@127.0.0.1:3306/easytier_bridge_test
-        CARGO_INCREMENTAL: 0
-        RUSTFLAGS: "-C instrument-coverage"
       run: |
         echo "Running coverage on library code only to reduce compilation time..."
-        cargo llvm-cov --workspace --all-features --lcov --output-path lcov.info
-      timeout-minutes: 60
+        cargo llvm-cov --workspace --all-features --lcov --output-path lcov.info --lib
+      timeout-minutes: 45
 
     - name: Upload coverage reports to Codecov
       uses: codecov/codecov-action@v5
