@@ -15,37 +15,39 @@ pub enum DeviceType {
     Edge,
 }
 
-/// Device status enumeration - compatible with cortex-core
+/// Device status enumeration - Simplified to 7 statuses (compatible with cortex-core)
 #[derive(Debug, Clone, PartialEq, Eq, EnumIter, DeriveActiveEnum, Serialize, Deserialize)]
 #[sea_orm(rs_type = "String", db_type = "Enum", enum_name = "device_status")]
 pub enum DeviceStatus {
+    // Registration states
     #[sea_orm(string_value = "pending")]
-    Pending, // Newly connected, awaiting admin approval
-    #[sea_orm(string_value = "approved")]
-    Approved, // Approved by admin, can join networks
+    Pending, // Awaiting admin approval
     #[sea_orm(string_value = "rejected")]
-    Rejected, // Rejected by admin, blocked from networks
-    #[sea_orm(string_value = "available")]
-    Available, // Legacy status - approved and currently available
-    #[sea_orm(string_value = "busy")]
-    Busy, // Legacy status - approved but currently busy
-    #[sea_orm(string_value = "maintenance")]
-    Maintenance, // Legacy status - approved but in maintenance
+    Rejected, // Admin rejected registration
+
+    // Operational states (post-approval, based on connection)
+    #[sea_orm(string_value = "online")]
+    Online, // Approved + Connected + Available workstation
     #[sea_orm(string_value = "offline")]
-    Offline, // Device disconnected (updated by heartbeat timeout)
-    #[sea_orm(string_value = "connecting")]
-    Connecting, // Legacy status - transitional state
-    #[sea_orm(string_value = "network_error")]
-    NetworkError, // Legacy status - network issues
+    Offline, // Approved but not connected (no heartbeat)
+    #[sea_orm(string_value = "busy")]
+    Busy, // Data collector logged in (workstation occupied)
+
+    // Administrative states
+    #[sea_orm(string_value = "maintenance")]
+    Maintenance, // Under maintenance
+    #[sea_orm(string_value = "disabled")]
+    Disabled, // Administratively disabled/decommissioned
 }
 
 impl DeviceStatus {
     /// Check if device is approved (can participate in networks)
+    /// Includes all post-approval statuses: online, offline, busy, maintenance
     pub fn is_approved(&self) -> bool {
         matches!(
             self,
-            DeviceStatus::Approved
-                | DeviceStatus::Available
+            DeviceStatus::Online
+                | DeviceStatus::Offline
                 | DeviceStatus::Busy
                 | DeviceStatus::Maintenance
         )
@@ -61,9 +63,9 @@ impl DeviceStatus {
         matches!(self, DeviceStatus::Rejected)
     }
 
-    /// Check if device is online (has recent heartbeat)
+    /// Check if device is online (based on status)
     pub fn is_online(&self) -> bool {
-        !matches!(self, DeviceStatus::Offline)
+        matches!(self, DeviceStatus::Online | DeviceStatus::Busy)
     }
 }
 
@@ -85,7 +87,7 @@ pub struct Model {
     #[sea_orm(column_type = "Text", nullable)]
     pub model: Option<String>,
 
-    #[sea_orm(default_value = "offline")]
+    #[sea_orm(default_value = "pending")]
     pub status: DeviceStatus,
 
     #[sea_orm(column_type = "Json", nullable)]

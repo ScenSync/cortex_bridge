@@ -478,12 +478,15 @@ impl ClientManager {
             cutoff_time
         );
 
-        // Find devices that haven't sent heartbeat recently and are approved but not already offline
-        // Only mark approved devices as offline - pending/rejected devices should maintain their status
+        // Find devices that haven't sent heartbeat recently and should be marked offline
+        // Only mark online/busy devices as offline - pending/rejected devices should maintain their status
         let offline_devices = devices::Entity::find()
             .filter(devices::Column::LastHeartbeat.lt(cutoff_time))
             .filter(devices::Column::Status.ne(devices::DeviceStatus::Offline))
-            .filter(devices::Column::Status.eq(devices::DeviceStatus::Approved))
+            .filter(
+                devices::Column::Status
+                    .is_in([devices::DeviceStatus::Online, devices::DeviceStatus::Busy]),
+            )
             .all(storage.db().orm())
             .await
             .with_context(|| "Failed to query devices for timeout check")?;
