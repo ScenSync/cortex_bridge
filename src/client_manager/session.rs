@@ -188,7 +188,7 @@ impl SessionRpcService {
             data.storage_token = Some(storage_token);
         }
 
-        crate::debug!("[SESSION_RPC] Successfully processed heartbeat for organization_id: {}, device_id: {}, status: {:?}", organization_id, device_id, device_status);
+        crate::trace!("[SESSION_RPC] Successfully processed heartbeat for organization_id: {}, device_id: {}, status: {:?}", organization_id, device_id, device_status);
 
         let _ = data.notifier.send(req);
         Ok(HeartbeatResponse {})
@@ -254,7 +254,7 @@ impl SessionRpcService {
                     format!("Failed to update device heartbeat: {}", device_id_str)
                 })?;
 
-                crate::debug!(
+                crate::trace!(
                     "[SESSION_RPC] Updated heartbeat for existing device: {}, status: {:?}",
                     device_id_str,
                     new_status
