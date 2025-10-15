@@ -1,6 +1,6 @@
 //! Database entities for easytier-bridge
 //!
-//! These entities are designed to be compatible with cortex-core models
+//! These entities are designed to be compatible with cortex_server models
 //! while providing the necessary functionality for EasyTier client management.
 //!
 //! Note: client_sessions are maintained only in memory, not in database.

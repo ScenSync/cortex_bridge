@@ -1,7 +1,7 @@
 //! Database module for easytier-bridge
 //!
 //! This module provides MySQL-based storage for client management,
-//! reusing models from cortex-core where possible.
+//! reusing models from cortex_server where possible.
 
 pub mod connection;
 pub mod entities;
@@ -11,7 +11,7 @@ use sea_orm::{DatabaseConnection, DbErr};
 use std::sync::Arc;
 use uuid::Uuid;
 
-/// User ID type compatible with cortex-core
+/// User ID type compatible with cortex_server
 pub type OrgIdInDb = String;
 
 /// Database connection wrapper

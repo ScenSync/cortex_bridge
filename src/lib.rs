@@ -2,7 +2,7 @@
 //!
 //! This crate provides unified EasyTier integration for Cortex applications.
 //! It combines both core EasyTier functionality and web client management capabilities.
-//! Additionally, it provides C FFI interfaces for integration with cortex-core.
+//! Additionally, it provides C FFI interfaces for integration with cortex_server.
 
 use std::ffi::{c_char, c_int, CStr, CString};
 use std::ptr;

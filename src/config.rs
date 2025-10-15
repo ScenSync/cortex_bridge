@@ -58,8 +58,8 @@ pub fn get_geoip_db_path() -> Option<String> {
     let alternative_paths = [
         "../resources/geoip2-cn.mmdb",                 // From target directory
         "../../resources/geoip2-cn.mmdb",              // From nested directories
-        "./easytier-bridge/resources/geoip2-cn.mmdb",  // From cortex-core root
-        "../easytier-bridge/resources/geoip2-cn.mmdb", // From cortex-core subdirectory
+        "./easytier-bridge/resources/geoip2-cn.mmdb",  // From cortex_server root
+        "../easytier-bridge/resources/geoip2-cn.mmdb", // From cortex_server subdirectory
         "../../easytier-bridge/resources/geoip2-cn.mmdb", // From deeper nested directories
     ];
 

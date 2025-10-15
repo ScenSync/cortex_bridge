@@ -4,7 +4,7 @@
 //! - Heartbeat handling and status transitions
 //! - Device timeout and offline marking
 //! - Status preservation during device edits
-//! - Integration with cortex-core device service
+//! - Integration with cortex_server device service
 
 use serial_test::serial;
 

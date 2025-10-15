@@ -1,4 +1,4 @@
-//! Organization entity compatible with cortex-core Organization model
+//! Organization entity compatible with cortex_server Organization model
 
 use sea_orm::entity::prelude::*;
 use sea_orm::Set;
@@ -21,7 +21,7 @@ pub enum OrganizationStatus {
     Suspended,
 }
 
-/// Organization entity - compatible with cortex-core Organization model
+/// Organization entity - compatible with cortex_server Organization model
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq, Serialize, Deserialize)]
 #[sea_orm(table_name = "organizations")]
 pub struct Model {

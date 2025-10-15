@@ -24,7 +24,7 @@ dist/
 
 # Backend specific
 backend/cortex-server
-cortex-core/cortex-server
+cortex_server/cortex-server
 backend/tmp/
 backend/logs/
 
@@ -156,12 +156,12 @@ Cargo.lock
 **/*.rs.bk
 
 # binary fiels
-cortex-core/cortex-core
-cortex-core/cortex-core-linux
-cortex-core/cortex-core-windows
-cortex-core/bin
-cortex-core/main
-cortex-core/server
+cortex_server/cortex_server
+cortex_server/cortex_server-linux
+cortex_server/cortex_server-windows
+cortex_server/bin
+cortex_server/main
+cortex_server/server
 
 # ignore header files since they are generated
 include/*.h
