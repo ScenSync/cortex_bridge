@@ -1,11 +1,11 @@
-//! Device entity compatible with cortex-core Device model
+//! Device entity compatible with cortex_server Device model
 
 use sea_orm::entity::prelude::*;
 // use sea_orm::Set; // Unused import
 use serde::{Deserialize, Serialize};
 // use uuid::Uuid; // Unused import
 
-/// Device type enumeration - compatible with cortex-core
+/// Device type enumeration - compatible with cortex_server
 #[derive(Debug, Clone, PartialEq, Eq, EnumIter, DeriveActiveEnum, Serialize, Deserialize)]
 #[sea_orm(rs_type = "String", db_type = "Enum", enum_name = "device_type")]
 pub enum DeviceType {
@@ -15,7 +15,7 @@ pub enum DeviceType {
     Edge,
 }
 
-/// Device status enumeration - Simplified to 7 statuses (compatible with cortex-core)
+/// Device status enumeration - Simplified to 7 statuses (compatible with cortex_server)
 #[derive(Debug, Clone, PartialEq, Eq, EnumIter, DeriveActiveEnum, Serialize, Deserialize)]
 #[sea_orm(rs_type = "String", db_type = "Enum", enum_name = "device_status")]
 pub enum DeviceStatus {
@@ -69,7 +69,7 @@ impl DeviceStatus {
     }
 }
 
-/// Device entity - compatible with cortex-core Device model
+/// Device entity - compatible with cortex_server Device model
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq, Serialize, Deserialize)]
 #[sea_orm(table_name = "devices")]
 pub struct Model {

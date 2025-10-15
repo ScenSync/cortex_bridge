@@ -1,4 +1,4 @@
-//! Migration to create devices table compatible with cortex-core
+//! Migration to create devices table compatible with cortex_server
 
 use sea_orm_migration::prelude::*;
 

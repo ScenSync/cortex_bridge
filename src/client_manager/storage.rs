@@ -8,13 +8,13 @@ use uuid::Uuid;
 use crate::db::{Database, OrgIdInDb};
 
 /// Storage token for client identification
-/// Updated to align with cortex-core models: machines -> devices, user_id -> organization_id
+/// Updated to align with cortex_server models: machines -> devices, user_id -> organization_id
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct StorageToken {
     pub token: String,
     pub client_url: url::Url,
-    pub device_id: Uuid, // Changed from machine_id to device_id to align with cortex-core Device model
-    pub organization_id: OrgIdInDb, // Changed from user_id to organization_id to align with cortex-core Organization model
+    pub device_id: Uuid, // Changed from machine_id to device_id to align with cortex_server Device model
+    pub organization_id: OrgIdInDb, // Changed from user_id to organization_id to align with cortex_server Organization model
 }
 
 #[derive(Debug, Clone)]
