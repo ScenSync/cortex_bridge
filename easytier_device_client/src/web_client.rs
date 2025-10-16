@@ -16,8 +16,8 @@ use tracing::{error, info, warn};
 
 use crate::MockStunInfoCollectorWrapper;
 
-// Type alias
-type WebClientInstance = (Arc<WebClient>, tokio::runtime::Runtime);
+// Type alias - store GlobalCtx to access network info
+type WebClientInstance = (Arc<WebClient>, Arc<GlobalCtx>, tokio::runtime::Runtime);
 type WebClientMap = HashMap<String, WebClientInstance>;
 
 // Global storage for web client instances
@@ -39,8 +39,6 @@ pub struct CortexNetworkInfo {
     pub virtual_ipv4: *const c_char,
     pub hostname: *const c_char,
     pub version: *const c_char,
-    pub peer_count: c_int,
-    pub route_count: c_int,
 }
 
 /// Start web client in config mode
@@ -167,13 +165,16 @@ pub unsafe extern "C" fn cortex_start_web_client(client_config: *const CortexWeb
         tokio::time::sleep(std::time::Duration::from_millis(100)).await;
 
         info!("Web client created successfully");
-        Ok((web_client, token))
+        Ok((web_client, global_ctx, token))
     });
 
     match result {
-        Ok((web_client, instance_name)) => {
+        Ok((web_client, global_ctx, instance_name)) => {
             let mut instances = WEB_CLIENT_INSTANCES.lock().unwrap();
-            instances.insert(instance_name.clone(), (Arc::new(web_client), runtime));
+            instances.insert(
+                instance_name.clone(),
+                (Arc::new(web_client), global_ctx, runtime),
+            );
             info!("Web client instance '{}' registered", instance_name);
             0
         }
@@ -239,22 +240,34 @@ pub unsafe extern "C" fn cortex_get_web_client_network_info(
     };
 
     let instances = WEB_CLIENT_INSTANCES.lock().unwrap();
-    if !instances.contains_key(&name) {
-        set_error_msg(&format!("instance '{}' not found", name));
-        return -1;
-    }
+    let instance = match instances.get(&name) {
+        Some(inst) => inst,
+        None => {
+            set_error_msg(&format!("instance '{}' not found", name));
+            return -1;
+        }
+    };
 
-    // Create network info
+    let (_web_client, global_ctx, _runtime) = instance;
+
+    // Get actual network information from GlobalCtx
+    let virtual_ipv4 = match global_ctx.get_ipv4() {
+        Some(ipv4) => format!("{}", ipv4),
+        None => {
+            warn!("Virtual IPv4 not assigned yet");
+            "0.0.0.0/0".to_string()
+        }
+    };
+
+    // Create network info with actual values
     let network_info = Box::new(CortexNetworkInfo {
         instance_name: CString::new(name.clone()).unwrap().into_raw(),
         network_name: CString::new(name).unwrap().into_raw(),
-        virtual_ipv4: CString::new("10.0.0.1").unwrap().into_raw(),
+        virtual_ipv4: CString::new(virtual_ipv4).unwrap().into_raw(),
         hostname: CString::new(gethostname::gethostname().to_string_lossy().to_string())
             .unwrap()
             .into_raw(),
-        version: CString::new("1.0.0").unwrap().into_raw(),
-        peer_count: 0,
-        route_count: 0,
+        version: CString::new(env!("CARGO_PKG_VERSION")).unwrap().into_raw(),
     });
 
     *info = Box::into_raw(network_info);

@@ -14,8 +14,6 @@ typedef struct CortexNetworkInfo {
   const char *virtual_ipv4;
   const char *hostname;
   const char *version;
-  int peer_count;
-  int route_count;
 } CortexNetworkInfo;
 
 /**
