@@ -1,0 +1,26 @@
+[package]
+name = "easytier_network_gateway"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "EasyTier server-side network gateway wrapper"
+
+[lib]
+name = "easytier_network_gateway"
+crate-type = ["cdylib", "staticlib", "rlib"]
+
+[dependencies]
+easytier.workspace = true
+easytier_common = { path = "../easytier_common" }
+
+tokio.workspace = true
+uuid.workspace = true
+url.workspace = true
+once_cell.workspace = true
+serde_json.workspace = true
+tracing.workspace = true
+
+[build-dependencies]
+cbindgen = "0.26"
+
