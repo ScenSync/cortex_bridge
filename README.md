@@ -289,7 +289,22 @@ cargo test -p easytier_config_server --features geoip
 
 # Test all crates
 cargo test --all
+
+# Run quick tests (no database required)
+cargo test --workspace --lib  # 12 unit tests in ~0.1s
+
+# Run all integration tests (no database)
+cargo test --workspace --tests  # 107 tests in ~1.5s
 ```
+
+**Test Coverage**: 197 tests total
+- easytier_common: 7 tests
+- easytier_device_client: 45 tests (35 new FFI tests)
+- easytier_network_gateway: 46 tests (43 new Builder API + FFI tests)
+- easytier_config_server: 94 tests
+- Cross-crate integration: 5 tests
+
+See [TEST_COVERAGE_REPORT.md](TEST_COVERAGE_REPORT.md) for detailed coverage information.
 
 ---
 
