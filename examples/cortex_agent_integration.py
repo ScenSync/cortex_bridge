@@ -26,8 +26,6 @@ class CortexNetworkInfo(Structure):
         ("virtual_ipv4", c_char_p),
         ("hostname", c_char_p),
         ("version", c_char_p),
-        ("peer_count", c_int),
-        ("route_count", c_int),
     ]
 
 class EasyTierDeviceClient:
@@ -128,8 +126,6 @@ class EasyTierDeviceClient:
                 "virtual_ipv4": info.virtual_ipv4.decode() if info.virtual_ipv4 else "",
                 "hostname": info.hostname.decode() if info.hostname else "",
                 "version": info.version.decode() if info.version else "",
-                "peer_count": info.peer_count,
-                "route_count": info.route_count,
             }
         
         return None

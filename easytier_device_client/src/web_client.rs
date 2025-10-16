@@ -5,6 +5,10 @@ use easytier::common::config::TomlConfigLoader;
 use easytier::common::global_ctx::GlobalCtx;
 use easytier::common::set_default_machine_id;
 use easytier::connector::create_connector_by_url;
+use easytier::proto::cli::{PeerManageRpcClientFactory, ShowNodeInfoRequest};
+use easytier::proto::rpc_impl::standalone::StandAloneClient;
+use easytier::proto::rpc_types::controller::BaseController;
+use easytier::tunnel::tcp::TcpTunnelConnector;
 use easytier::tunnel::IpVersion;
 use easytier::web_client::WebClient;
 use easytier_common::{c_str_to_string, set_error_msg};
@@ -16,8 +20,13 @@ use tracing::{error, info, warn};
 
 use crate::MockStunInfoCollectorWrapper;
 
-// Type alias
-type WebClientInstance = (Arc<WebClient>, tokio::runtime::Runtime);
+// Type alias - store GlobalCtx and current virtual IP
+type WebClientInstance = (
+    Arc<WebClient>,
+    Arc<GlobalCtx>,
+    tokio::runtime::Runtime,
+    Arc<std::sync::Mutex<Option<String>>>, // Cached virtual IP
+);
 type WebClientMap = HashMap<String, WebClientInstance>;
 
 // Global storage for web client instances
@@ -39,8 +48,6 @@ pub struct CortexNetworkInfo {
     pub virtual_ipv4: *const c_char,
     pub hostname: *const c_char,
     pub version: *const c_char,
-    pub peer_count: c_int,
-    pub route_count: c_int,
 }
 
 /// Start web client in config mode
@@ -167,13 +174,38 @@ pub unsafe extern "C" fn cortex_start_web_client(client_config: *const CortexWeb
         tokio::time::sleep(std::time::Duration::from_millis(100)).await;
 
         info!("Web client created successfully");
-        Ok((web_client, token))
+
+        // Create a cache for the virtual IP
+        let virtual_ip_cache = Arc::new(std::sync::Mutex::new(None));
+
+        // Spawn a task to listen for DHCP IP changes
+        let global_ctx_clone = global_ctx.clone();
+        let ip_cache_clone = virtual_ip_cache.clone();
+        tokio::spawn(async move {
+            let mut subscriber = global_ctx_clone.subscribe();
+            while let Ok(event) = subscriber.recv().await {
+                if let easytier::common::global_ctx::GlobalCtxEvent::DhcpIpv4Changed(_, Some(ip)) =
+                    event
+                {
+                    let ip_str = format!("{}", ip);
+                    info!("DHCP IPv4 assigned: {}", ip_str);
+                    if let Ok(mut cache) = ip_cache_clone.lock() {
+                        *cache = Some(ip_str);
+                    }
+                }
+            }
+        });
+
+        Ok((web_client, global_ctx, virtual_ip_cache, token))
     });
 
     match result {
-        Ok((web_client, instance_name)) => {
+        Ok((web_client, global_ctx, virtual_ip_cache, instance_name)) => {
             let mut instances = WEB_CLIENT_INSTANCES.lock().unwrap();
-            instances.insert(instance_name.clone(), (Arc::new(web_client), runtime));
+            instances.insert(
+                instance_name.clone(),
+                (Arc::new(web_client), global_ctx, runtime, virtual_ip_cache),
+            );
             info!("Web client instance '{}' registered", instance_name);
             0
         }
@@ -212,6 +244,43 @@ pub unsafe extern "C" fn cortex_stop_web_client(instance_name: *const c_char) ->
     }
 }
 
+/// Helper function to query virtual IP via RPC
+async fn query_virtual_ip_via_rpc() -> String {
+    let mut rpc_client = StandAloneClient::new(TcpTunnelConnector::new(
+        "tcp://127.0.0.1:15888".parse().unwrap(),
+    ));
+
+    match rpc_client
+        .scoped_client::<PeerManageRpcClientFactory<BaseController>>("".to_string())
+        .await
+    {
+        Ok(peer_client) => {
+            match peer_client
+                .show_node_info(BaseController::default(), ShowNodeInfoRequest::default())
+                .await
+            {
+                Ok(resp) => {
+                    if let Some(node_info) = resp.node_info {
+                        info!("Got node info via RPC: {}", node_info.ipv4_addr);
+                        node_info.ipv4_addr
+                    } else {
+                        warn!("No node_info in RPC response");
+                        "0.0.0.0/0".to_string()
+                    }
+                }
+                Err(e) => {
+                    warn!("RPC show_node_info failed: {}", e);
+                    "0.0.0.0/0".to_string()
+                }
+            }
+        }
+        Err(e) => {
+            warn!("Failed to create RPC client: {}", e);
+            "0.0.0.0/0".to_string()
+        }
+    }
+}
+
 /// Get network info
 ///
 /// # Safety
@@ -239,22 +308,28 @@ pub unsafe extern "C" fn cortex_get_web_client_network_info(
     };
 
     let instances = WEB_CLIENT_INSTANCES.lock().unwrap();
-    if !instances.contains_key(&name) {
-        set_error_msg(&format!("instance '{}' not found", name));
-        return -1;
-    }
+    let instance = match instances.get(&name) {
+        Some(inst) => inst,
+        None => {
+            set_error_msg(&format!("instance '{}' not found", name));
+            return -1;
+        }
+    };
 
-    // Create network info
+    let (_web_client, _global_ctx, runtime, _ip_cache) = instance;
+
+    // Query network info via RPC like easytier-cli does
+    let virtual_ipv4 = runtime.block_on(query_virtual_ip_via_rpc());
+
+    // Create network info with actual values
     let network_info = Box::new(CortexNetworkInfo {
         instance_name: CString::new(name.clone()).unwrap().into_raw(),
         network_name: CString::new(name).unwrap().into_raw(),
-        virtual_ipv4: CString::new("10.0.0.1").unwrap().into_raw(),
+        virtual_ipv4: CString::new(virtual_ipv4).unwrap().into_raw(),
         hostname: CString::new(gethostname::gethostname().to_string_lossy().to_string())
             .unwrap()
             .into_raw(),
-        version: CString::new("1.0.0").unwrap().into_raw(),
-        peer_count: 0,
-        route_count: 0,
+        version: CString::new(env!("CARGO_PKG_VERSION")).unwrap().into_raw(),
     });
 
     *info = Box::into_raw(network_info);
