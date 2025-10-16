@@ -29,7 +29,7 @@ mod cross_crate_tests {
     #[test]
     fn test_device_client_uses_common_errors() {
         // Test that device client uses common error module
-        use easytier_device_client::{cortex_start_web_client, CortexWebClient};
+        use easytier_device_client::cortex_start_web_client;
 
         unsafe {
             let result = cortex_start_web_client(ptr::null());
@@ -76,7 +76,7 @@ mod cross_crate_tests {
     #[test]
     fn test_device_client_and_gateway_independent() {
         // Test that device_client and gateway can be used independently
-        use easytier_device_client::{cortex_start_web_client, CortexWebClient};
+        use easytier_device_client::cortex_start_web_client;
         use easytier_network_gateway::start_easytier_core;
 
         // Both should fail with null, but not crash

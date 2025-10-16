@@ -814,7 +814,7 @@ mod gateway_ffi_tests {
     #[test]
     fn test_flag_combinations() {
         // Test various flag combinations
-        let flag_cases = vec![
+        let flag_cases = [
             (1, 1, 0, 0, "Encryption + IPv6"),
             (1, 0, 1, 0, "Encryption + Latency-first"),
             (0, 0, 0, 1, "Exit node only"),
@@ -881,7 +881,7 @@ mod gateway_ffi_tests {
     #[test]
     fn test_private_mode_vs_p2p_mode() {
         // Test private_mode flag
-        let modes = vec![(1, "Private mode"), (0, "P2P mode")];
+        let modes = [(1, "Private mode"), (0, "P2P mode")];
 
         for (i, (private_mode, description)) in modes.iter().enumerate() {
             let instance_name = CString::new(format!("test-mode-{}", i)).unwrap();
@@ -1026,7 +1026,7 @@ mod builder_api_tests {
     fn test_network_secret_lengths() {
         // Test various network secret lengths
         let long_secret = "x".repeat(256);
-        let secret_cases = vec![
+        let secret_cases = [
             ("", "Empty secret"),
             ("a", "Single char secret"),
             ("short", "Short secret"),

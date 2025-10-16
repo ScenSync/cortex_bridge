@@ -333,7 +333,7 @@ mod web_client_ffi_tests {
     #[test]
     fn test_multiple_uuids() {
         // Test with different UUID versions and formats
-        let test_uuids = vec![
+        let test_uuids = [
             uuid::Uuid::new_v4().to_string(),
             uuid::Uuid::new_v4().to_string(),
             uuid::Uuid::new_v4().to_string(),
@@ -585,7 +585,7 @@ mod web_client_ffi_tests {
             unsafe {
                 let result = cortex_start_web_client(&client_config);
 
-                if expected_org_id.is_some() {
+                if let Some(org_id) = expected_org_id {
                     // Should handle valid org_id
                     assert!(
                         result == 0 || result == -1,
@@ -594,7 +594,7 @@ mod web_client_ffi_tests {
                     );
 
                     if result == 0 {
-                        let instance_name = CString::new(expected_org_id.unwrap()).unwrap();
+                        let instance_name = CString::new(org_id).unwrap();
                         let _ = cortex_stop_web_client(instance_name.as_ptr());
                     }
                 } else {

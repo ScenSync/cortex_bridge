@@ -71,7 +71,7 @@ mod builder_api_validation_tests {
     #[test]
     fn test_builder_api_dhcp_configuration() {
         // Test DHCP configuration via Builder API
-        let dhcp_modes = vec![(0, "Manual IP"), (1, "DHCP enabled")];
+        let dhcp_modes = [(0, "Manual IP"), (1, "DHCP enabled")];
 
         for (i, (dhcp_value, description)) in dhcp_modes.iter().enumerate() {
             let instance_name = CString::new(format!("builder-dhcp-{}", i)).unwrap();
@@ -365,7 +365,7 @@ mod builder_api_validation_tests {
     #[test]
     fn test_builder_api_rpc_portal() {
         // Test RPC portal configuration
-        let rpc_ports = vec![
+        let rpc_ports = [
             (15888, "Default RPC port"),
             (15000, "Custom RPC port 1"),
             (16000, "Custom RPC port 2"),
@@ -552,7 +552,7 @@ mod configuration_parsing_tests {
     #[test]
     fn test_listener_url_schemes() {
         // Test all supported listener schemes
-        let schemes = vec![
+        let schemes = [
             ("tcp://0.0.0.0:13010", "TCP scheme"),
             ("udp://0.0.0.0:13011", "UDP scheme"),
             ("ws://0.0.0.0:13012", "WebSocket scheme"),
@@ -618,7 +618,7 @@ mod configuration_parsing_tests {
     #[test]
     fn test_ipv6_listener_addresses() {
         // Test IPv6 listener addresses
-        let ipv6_listeners = vec![
+        let ipv6_listeners = [
             ("tcp://[::]:13020", "IPv6 any address"),
             ("tcp://[::1]:13021", "IPv6 loopback"),
             ("tcp://[fe80::1]:13022", "IPv6 link-local"),
@@ -684,7 +684,7 @@ mod configuration_parsing_tests {
     #[test]
     fn test_network_name_variations() {
         // Test various network names
-        let network_names = vec![
+        let network_names = [
             "simple",
             "network-with-dashes",
             "network_with_underscores",
@@ -752,7 +752,7 @@ mod configuration_parsing_tests {
     #[test]
     fn test_peer_url_parsing() {
         // Test peer URL parsing with various formats
-        let peer_urls = vec![
+        let peer_urls = [
             "tcp://192.168.1.1:11010",
             "udp://10.0.0.1:11011",
             "ws://example.com:11012",
@@ -880,7 +880,7 @@ mod configuration_parsing_tests {
 #[cfg(test)]
 mod memory_safety_tests {
     use super::*;
-    use easytier_network_gateway::{start_easytier_core, stop_easytier_core, EasyTierCoreConfig};
+    use easytier_network_gateway::{start_easytier_core, EasyTierCoreConfig};
 
     #[test]
     fn test_struct_memory_layout() {
