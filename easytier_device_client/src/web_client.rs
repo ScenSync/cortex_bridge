@@ -16,8 +16,13 @@ use tracing::{error, info, warn};
 
 use crate::MockStunInfoCollectorWrapper;
 
-// Type alias - store GlobalCtx to access network info
-type WebClientInstance = (Arc<WebClient>, Arc<GlobalCtx>, tokio::runtime::Runtime);
+// Type alias - store GlobalCtx and current virtual IP
+type WebClientInstance = (
+    Arc<WebClient>,
+    Arc<GlobalCtx>,
+    tokio::runtime::Runtime,
+    Arc<std::sync::Mutex<Option<String>>>, // Cached virtual IP
+);
 type WebClientMap = HashMap<String, WebClientInstance>;
 
 // Global storage for web client instances
@@ -165,15 +170,37 @@ pub unsafe extern "C" fn cortex_start_web_client(client_config: *const CortexWeb
         tokio::time::sleep(std::time::Duration::from_millis(100)).await;
 
         info!("Web client created successfully");
-        Ok((web_client, global_ctx, token))
+
+        // Create a cache for the virtual IP
+        let virtual_ip_cache = Arc::new(std::sync::Mutex::new(None));
+
+        // Spawn a task to listen for DHCP IP changes
+        let global_ctx_clone = global_ctx.clone();
+        let ip_cache_clone = virtual_ip_cache.clone();
+        tokio::spawn(async move {
+            let mut subscriber = global_ctx_clone.subscribe();
+            while let Ok(event) = subscriber.recv().await {
+                if let easytier::common::global_ctx::GlobalCtxEvent::DhcpIpv4Changed(_, Some(ip)) =
+                    event
+                {
+                    let ip_str = format!("{}", ip);
+                    info!("DHCP IPv4 assigned: {}", ip_str);
+                    if let Ok(mut cache) = ip_cache_clone.lock() {
+                        *cache = Some(ip_str);
+                    }
+                }
+            }
+        });
+
+        Ok((web_client, global_ctx, virtual_ip_cache, token))
     });
 
     match result {
-        Ok((web_client, global_ctx, instance_name)) => {
+        Ok((web_client, global_ctx, virtual_ip_cache, instance_name)) => {
             let mut instances = WEB_CLIENT_INSTANCES.lock().unwrap();
             instances.insert(
                 instance_name.clone(),
-                (Arc::new(web_client), global_ctx, runtime),
+                (Arc::new(web_client), global_ctx, runtime, virtual_ip_cache),
             );
             info!("Web client instance '{}' registered", instance_name);
             0
@@ -248,15 +275,25 @@ pub unsafe extern "C" fn cortex_get_web_client_network_info(
         }
     };
 
-    let (_web_client, global_ctx, _runtime) = instance;
+    let (_web_client, global_ctx, _runtime, ip_cache) = instance;
 
-    // Get actual network information from GlobalCtx
-    let virtual_ipv4 = match global_ctx.get_ipv4() {
-        Some(ipv4) => format!("{}", ipv4),
-        None => {
-            warn!("Virtual IPv4 not assigned yet");
-            "0.0.0.0/0".to_string()
+    // Get actual network information from cached DHCP-assigned IP or GlobalCtx
+    let virtual_ipv4 = if let Ok(cache) = ip_cache.lock() {
+        if let Some(ref cached_ip) = *cache {
+            cached_ip.clone()
+        } else {
+            // Fall back to GlobalCtx if cache is empty
+            match global_ctx.get_ipv4() {
+                Some(ipv4) => format!("{}", ipv4),
+                None => {
+                    warn!("Virtual IPv4 not assigned yet");
+                    "0.0.0.0/0".to_string()
+                }
+            }
         }
+    } else {
+        warn!("Failed to lock IP cache");
+        "0.0.0.0/0".to_string()
     };
 
     // Create network info with actual values
