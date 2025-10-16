@@ -553,8 +553,8 @@ mod web_client_ffi_tests {
         assert!(size > 0, "CortexNetworkInfo should have non-zero size");
 
         // Should have 5 string pointers + 2 integers
-        let expected_min_size = std::mem::size_of::<*const i8>() * 5
-            + std::mem::size_of::<i32>() * 2;
+        let expected_min_size =
+            std::mem::size_of::<*const i8>() * 5 + std::mem::size_of::<i32>() * 2;
         assert!(
             size >= expected_min_size,
             "CortexNetworkInfo should be at least {} bytes, got {}",
@@ -613,7 +613,9 @@ mod web_client_ffi_tests {
 #[cfg(test)]
 mod web_client_lifecycle_tests {
     use super::*;
-    use easytier_device_client::{cortex_start_web_client, cortex_stop_web_client, CortexWebClient};
+    use easytier_device_client::{
+        cortex_start_web_client, cortex_stop_web_client, CortexWebClient,
+    };
 
     #[test]
     fn test_start_stop_lifecycle() {
@@ -676,7 +678,9 @@ mod web_client_lifecycle_tests {
 #[cfg(test)]
 mod error_handling_tests {
     use super::*;
-    use easytier_device_client::{cortex_start_web_client, cortex_stop_web_client, CortexWebClient};
+    use easytier_device_client::{
+        cortex_start_web_client, cortex_stop_web_client, CortexWebClient,
+    };
 
     #[test]
     fn test_error_message_setting() {
@@ -866,4 +870,3 @@ mod memory_safety_tests {
         );
     }
 }
-

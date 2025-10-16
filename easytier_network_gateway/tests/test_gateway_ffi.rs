@@ -561,8 +561,7 @@ mod gateway_ffi_tests {
         ];
 
         for (rpc_port, description) in port_cases {
-            let instance_name =
-                CString::new(format!("test-rpc-port-{}", rpc_port.abs())).unwrap();
+            let instance_name = CString::new(format!("test-rpc-port-{}", rpc_port.abs())).unwrap();
             let network_name = CString::new("test-network").unwrap();
             let network_secret = CString::new("test-secret").unwrap();
             let listener = CString::new("tcp://0.0.0.0:11017").unwrap();
@@ -688,8 +687,8 @@ mod gateway_ffi_tests {
             let instance_name = CString::new(format!("test-dhcp-{}", dhcp_value)).unwrap();
             let network_name = CString::new("test-network").unwrap();
             let network_secret = CString::new("test-secret").unwrap();
-            let listener = CString::new(format!("tcp://0.0.0.0:1101{}", dhcp_value.abs() % 10))
-                .unwrap();
+            let listener =
+                CString::new(format!("tcp://0.0.0.0:1101{}", dhcp_value.abs() % 10)).unwrap();
 
             let listeners = vec![listener.as_ptr()];
             let listeners_box = listeners.into_boxed_slice();
@@ -882,10 +881,7 @@ mod gateway_ffi_tests {
     #[test]
     fn test_private_mode_vs_p2p_mode() {
         // Test private_mode flag
-        let modes = vec![
-            (1, "Private mode"),
-            (0, "P2P mode"),
-        ];
+        let modes = vec![(1, "Private mode"), (0, "P2P mode")];
 
         for (i, (private_mode, description)) in modes.iter().enumerate() {
             let instance_name = CString::new(format!("test-mode-{}", i)).unwrap();
@@ -927,11 +923,7 @@ mod gateway_ffi_tests {
 
             unsafe {
                 let result = start_easytier_core(&config);
-                assert!(
-                    result == 0 || result == -1,
-                    "Should handle {}",
-                    description
-                );
+                assert!(result == 0 || result == -1, "Should handle {}", description);
 
                 if result == 0 {
                     let _ = stop_easytier_core(instance_name.as_ptr());
@@ -962,7 +954,10 @@ mod builder_api_tests {
             "Config struct should be pointer-aligned"
         );
 
-        println!("EasyTierCoreConfig size: {} bytes, alignment: {}", size, align);
+        println!(
+            "EasyTierCoreConfig size: {} bytes, alignment: {}",
+            size, align
+        );
     }
 
     #[test]
@@ -1215,4 +1210,3 @@ mod gateway_lifecycle_tests {
         }
     }
 }
-

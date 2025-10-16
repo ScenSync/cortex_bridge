@@ -18,8 +18,10 @@ mod cross_crate_tests {
             let level = CString::new("debug").unwrap();
             let module = CString::new("test").unwrap();
 
-            let result =
-                easytier_common::easytier_common_init_console_logging(level.as_ptr(), module.as_ptr());
+            let result = easytier_common::easytier_common_init_console_logging(
+                level.as_ptr(),
+                module.as_ptr(),
+            );
             assert_eq!(result, 0, "Logging should initialize");
         }
     }
@@ -58,7 +60,10 @@ mod cross_crate_tests {
         let versions = vec![
             ("easytier_common", easytier_common::VERSION),
             ("easytier_device_client", easytier_device_client::VERSION),
-            ("easytier_network_gateway", easytier_network_gateway::VERSION),
+            (
+                "easytier_network_gateway",
+                easytier_network_gateway::VERSION,
+            ),
             ("easytier_config_server", easytier_config_server::VERSION),
         ];
 
@@ -84,4 +89,3 @@ mod cross_crate_tests {
         }
     }
 }
-

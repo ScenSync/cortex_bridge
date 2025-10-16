@@ -294,10 +294,7 @@ mod builder_api_validation_tests {
 
         unsafe {
             let result = start_easytier_core(&config);
-            assert!(
-                result == 0 || result == -1,
-                "Builder API should set peers"
-            );
+            assert!(result == 0 || result == -1, "Builder API should set peers");
 
             if result == 0 {
                 let _ = stop_easytier_core(instance_name.as_ptr());
@@ -898,7 +895,10 @@ mod memory_safety_tests {
         );
 
         // Verify it's #[repr(C)]
-        println!("EasyTierCoreConfig: size={} bytes, alignment={}", size, align);
+        println!(
+            "EasyTierCoreConfig: size={} bytes, alignment={}",
+            size, align
+        );
     }
 
     #[test]
@@ -968,4 +968,3 @@ mod memory_safety_tests {
         }
     }
 }
-
