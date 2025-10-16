@@ -15,9 +15,6 @@ jobs:
   quick-checks:
     name: Quick Checks (Format, Clippy, Build)
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        feature-set: ["server", "client", "default"]
     steps:
     - uses: actions/checkout@v4
 
@@ -39,35 +36,18 @@ jobs:
         sudo apt-get install -y build-essential pkg-config libssl-dev protobuf-compiler
 
     - name: Check formatting
-      if: matrix.feature-set == 'default'
       run: cargo fmt --all -- --check
 
     - name: Run Clippy
-      run: |
-        if [ "${{ matrix.feature-set }}" = "default" ]; then
-          cargo clippy --all-targets --all-features -- -D warnings
-        else
-          cargo clippy --no-default-features --features ${{ matrix.feature-set }} -- -D warnings
-        fi
+      run: cargo clippy --workspace --all-targets --all-features -- -D warnings
 
     - name: Build check
-      run: |
-        if [ "${{ matrix.feature-set }}" = "default" ]; then
-          cargo check --all-targets --all-features
-        elif [ "${{ matrix.feature-set }}" = "server" ]; then
-          cargo check --no-default-features --features server --all-targets
-        elif [ "${{ matrix.feature-set }}" = "client" ]; then
-          # Client-only build: only check lib, skip integration tests that require server modules
-          cargo check --no-default-features --features client --lib
-        fi
+      run: cargo check --workspace --all-targets --all-features
 
   # Fast unit tests without database
   unit-tests:
     name: Unit Tests (No Database)
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        feature-set: ["server", "client", "default"]
     steps:
     - uses: actions/checkout@v4
 
@@ -88,14 +68,8 @@ jobs:
 
     - name: Run unit tests
       run: |
-        if [ "${{ matrix.feature-set }}" = "default" ]; then
-          cargo test --lib --verbose
-        elif [ "${{ matrix.feature-set }}" = "server" ]; then
-          cargo test --no-default-features --features server --lib --verbose
-        elif [ "${{ matrix.feature-set }}" = "client" ]; then
-          # Client-only tests: only run lib tests, skip integration tests that require server modules
-          cargo test --no-default-features --features client --lib --verbose
-        fi
+        # Run unit tests for all workspace crates
+        cargo test --workspace --lib --all-features --verbose
 
   # Integration tests with database (only for server feature)
   integration-tests:
@@ -140,27 +114,17 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y build-essential pkg-config libssl-dev protobuf-compiler lld
 
-    - name: Run server integration tests
-      run: cargo test --no-default-features --features server --verbose
+    - name: Run integration tests
+      run: cargo test --workspace --all-features --verbose -- --test-threads=1
       env:
         DATABASE_URL: mysql://root:root123@127.0.0.1:3306/easytier_bridge_test
         CARGO_INCREMENTAL: 0
         CARGO_BUILD_JOBS: 2
 
-    - name: Clean build artifacts to save space
+    - name: Clean up test databases
       run: |
-        cargo clean --release
-        rm -rf target/debug/incremental
-        echo "Disk space after cleaning:"
-        df -h
-
-    - name: Run full integration tests
-      run: cargo test --all-features --verbose -- --test-threads=1
-      env:
-        DATABASE_URL: mysql://root:root123@127.0.0.1:3306/easytier_bridge_test
-        CARGO_INCREMENTAL: 0
-        CARGO_BUILD_JOBS: 2
-        RUSTFLAGS: "-C link-arg=-fuse-ld=lld"
+        cargo test --package easytier_config_server --test drop_test_dbs -- --nocapture || true
+        echo "Test database cleanup completed"
 
   # C header generation (only run once)
   c-headers:
@@ -181,16 +145,32 @@ jobs:
 
     - name: Generate C headers
       run: |
-        mkdir -p include
-        cbindgen --config cbindgen.toml --crate easytier-bridge --output include/easytier_bridge.h
+        # Generate headers for each crate
+        cd easytier_common && cargo build && cd ..
+        cd easytier_device_client && cargo build && cd ..
+        cd easytier_config_server && cargo build && cd ..
+        cd easytier_network_gateway && cargo build && cd ..
 
     - name: Verify C headers
       run: |
-        if [ ! -f include/easytier_bridge.h ]; then
-          echo "Error: C header file not generated"
+        # Verify all header files exist
+        if [ ! -f easytier_common/include/easytier_common.h ]; then
+          echo "Error: easytier_common.h not generated"
           exit 1
         fi
-        echo "C header file size: $(wc -c < include/easytier_bridge.h) bytes"
+        if [ ! -f easytier_device_client/include/easytier_device_client.h ]; then
+          echo "Error: easytier_device_client.h not generated"
+          exit 1
+        fi
+        if [ ! -f easytier_config_server/include/easytier_config_server.h ]; then
+          echo "Error: easytier_config_server.h not generated"
+          exit 1
+        fi
+        if [ ! -f easytier_network_gateway/include/easytier_network_gateway.h ]; then
+          echo "Error: easytier_network_gateway.h not generated"
+          exit 1
+        fi
+        echo "All C header files generated successfully"
 
   # Coverage (only run on main and develop branches to save resources)
   coverage:

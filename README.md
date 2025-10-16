@@ -1,213 +1,391 @@
-# Cortex EasyTier Bridge
+# EasyTier Bridge - Multi-Crate Architecture
 
-A unified Rust crate that provides comprehensive EasyTier integration for Cortex applications, combining both core EasyTier functionality and web client management capabilities.
+Comprehensive EasyTier integration for Cortex, separated into focused, independent crates.
 
-## Overview
+## Architecture Overview
 
-This crate merges the functionality of two previously separate crates:
-- `cortex-easytier-core`: Direct EasyTier core integration
-- `cortex-easytier-web`: EasyTier Web Client Manager with MySQL storage
-
-## Features
-
-### Server Features (optional, enabled by default)
-- EasyTier Core Server functionality
-- Client Manager for handling incoming connections
-- MySQL database storage integration
-- Session and storage management
-- GeoIP configuration support
-- Network configuration service FFI
-- C FFI interfaces for server functionality
-
-### Client Features (optional, enabled by default)
-- EasyTier Web Client functionality
-- Connects to EasyTier servers
-- C FFI interfaces for client functionality
-
-### Shared Features (always enabled)
-- Logging and panic recovery
-- STUN wrapper functionality
-
-## Feature Flags
-
-- `default = ["server", "client"]` - Enables both server and client functionality
-- `server` - Server functionality (manages clients, database, sessions)
-- `client` - Client functionality (connects to servers)
-- `database` - Database integration (sea-orm, sea-orm-migration) - part of server
-- `websocket` - WebSocket support (part of server features)
-
-## Usage
-
-### Server Only (for hosting/managing clients)
-
-```toml
-[dependencies]
-easytier-bridge = { version = "0.1.0", default-features = false, features = ["server"] }
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    cortex_agent (Device)                    │
+│  Uses: easytier_device_client                               │
+│  Purpose: Connect to config server, run local VPN networks  │
+└─────────────────────────────────────────────────────────────┘
+                          │
+                          │ Heartbeat + Config Requests
+                          ▼
+┌─────────────────────────────────────────────────────────────┐
+│                  cortex_server (Server)                     │
+│                                                             │
+│  ┌────────────────────────────────────────────────────┐   │
+│  │ easytier_network_gateway                           │   │
+│  │ Purpose: Server VPN gateway (relay for devices)    │   │
+│  └────────────────────────────────────────────────────┘   │
+│                                                             │
+│  ┌────────────────────────────────────────────────────┐   │
+│  │ easytier_config_server                             │   │
+│  │ Purpose: Manage devices, distribute configs        │   │
+│  └────────────────────────────────────────────────────┘   │
+│                                                             │
+│                MySQL Database (device_networks)             │
+└─────────────────────────────────────────────────────────────┘
 ```
 
-### Client Only (for connecting to servers)
+## Crates
 
-```toml
-[dependencies]
-easytier-bridge = { version = "0.1.0", default-features = false, features = ["client"] }
+### 1. `easytier_common`
+**Purpose**: Shared utilities and logging
+
+**Dependencies**: Minimal (no EasyTier, no database)
+
+**Features**:
+- Logging initialization (console + file)
+- FFI utility functions
+- Error handling
+- Panic recovery
+
+**Usage**: Included by all other crates
+
+---
+
+### 2. `easytier_device_client`
+**Purpose**: Device-side web client for connecting to config server
+
+**Target**: Used by `cortex_agent` (devices)
+
+**Features**:
+- Connects to config server
+- Sends heartbeat with org_id + machine_id
+- Receives RPC commands from server
+- Runs network instances locally on device
+
+**FFI Functions**:
+```c
+// Start web client
+int cortex_start_web_client(const CortexWebClient* config);
+
+// Stop web client
+int cortex_stop_web_client(const char* instance_name);
+
+// Get network info
+int cortex_get_web_client_network_info(
+    const char* instance_name,
+    CortexNetworkInfo** info
+);
 ```
 
-### Full Usage (Server + Client)
+**Dependencies**: `easytier`, `easytier_common`
 
-```toml
-[dependencies]
-easytier-bridge = "0.1.0"
+**Build**:
+```bash
+cd easytier_device_client
+cargo build --release
+# Output: target/release/libeasytier_device_client.so
 ```
 
-### Rust API
+---
 
+### 3. `easytier_network_gateway`
+**Purpose**: Server-side EasyTier gateway (VPN relay/gateway)
+
+**Target**: Used by `cortex_server`
+
+**Features**:
+- Runs EasyTier instance on server
+- Acts as VPN gateway for devices
+- Supports private mode or P2P mode
+- **Improved**: Uses Builder API (not TOML strings)
+
+**FFI Functions**:
+```c
+// Start gateway instance
+int start_easytier_core(const EasyTierCoreConfig* config);
+
+// Stop gateway instance
+int stop_easytier_core(const char* instance_name);
+
+// Get gateway status
+int get_easytier_core_status(
+    const char* instance_name,
+    char** status_json_out
+);
+```
+
+**Key Improvement**: Uses `ConfigLoader` trait methods instead of TOML string construction
 ```rust
-use cortex_easytier_bridge::{
-    // Server functionality (if server feature enabled)
-    start_easytier_core,
-    stop_easytier_core,
-    EasyTierCoreConfig,
-    ClientManager,
-    Session,
-    Storage,
-    
-    // Client functionality (if client feature enabled)
-    cortex_start_web_client,
-    cortex_stop_web_client,
-    cortex_get_web_client_network_info,
-};
+// Builder pattern (type-safe)
+let cfg = TomlConfigLoader::default();
+cfg.set_network_identity(NetworkIdentity::new(name, secret));
+cfg.set_dhcp(dhcp);
+cfg.set_listeners(listeners);
+let mut flags = cfg.get_flags();
+flags.enable_encryption = true;
+cfg.set_flags(flags);
 ```
 
-### C FFI API
+**Dependencies**: `easytier`, `easytier_common`
 
-The crate provides comprehensive C FFI interfaces:
+**Build**:
+```bash
+cd easytier_network_gateway
+cargo build --release
+# Output: target/release/libeasytier_network_gateway.so
+```
 
-#### Server Functions (when server feature is enabled)
-- `start_easytier_core`
-- `stop_easytier_core`
-- `cortex_web_set_and_init_console_logging`
-- `cortex_web_set_and_init_file_logging`
-- Network configuration FFI functions
+---
 
-#### Client Functions (when client feature is enabled)
-- `cortex_start_web_client`
-- `cortex_stop_web_client`
-- `cortex_get_web_client_network_info`
-- `cortex_list_web_client_instances`
+### 4. `easytier_config_server`
+**Purpose**: Device connection manager and config distributor
 
-## Build Requirements
+**Target**: Used by `cortex_server`
+
+**Features**:
+- Manages device connections via sessions
+- Stores device info in MySQL
+- **NEW**: Supports multiple networks per device
+- Distributes network configs via RPC
+- GeoIP location tracking
+- Heartbeat handling
+
+**Database Schema**:
+```sql
+-- devices table (device metadata only)
+CREATE TABLE devices (
+    id CHAR(36) PRIMARY KEY,
+    name VARCHAR(100),
+    status ENUM('pending', 'rejected', 'online', 'offline', ...),
+    organization_id CHAR(36),
+    ...
+);
+
+-- device_networks table (NEW - supports multiple networks)
+CREATE TABLE device_networks (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    device_id CHAR(36) NOT NULL,
+    network_instance_id CHAR(36) NOT NULL UNIQUE,
+    network_config JSON NOT NULL,
+    disabled BOOLEAN DEFAULT FALSE,
+    virtual_ip INT UNSIGNED,
+    virtual_ip_network_length TINYINT,
+    ...
+    FOREIGN KEY (device_id) REFERENCES devices(id) ON DELETE CASCADE
+);
+```
+
+**FFI Functions**:
+```c
+// Initialize config server
+bool create_network_config_service_singleton(
+    const char* db_url,
+    const char* geoip_path,
+    char** err_msg
+);
+
+// Start listener
+bool network_config_service_singleton_start(
+    const char* protocol,
+    uint16_t port,
+    char** err_msg
+);
+
+// List devices for organization
+bool network_config_service_list_devices(
+    const char* org_id,
+    char** result_json_out,
+    char** err_msg
+);
+
+// Run network instance on device (can be called multiple times per device)
+bool network_config_service_run_network_instance(
+    const char* org_id,
+    const char* device_id,
+    const char* config_json,
+    char** inst_id_out,
+    char** err_msg
+);
+
+// Remove network instance
+bool network_config_service_remove_network_instance(
+    const char* org_id,
+    const char* device_id,
+    const char* inst_id,
+    char** err_msg
+);
+```
+
+**Dependencies**: `easytier`, `easytier_common`, `sea-orm`, `maxminddb`
+
+**Build**:
+```bash
+cd easytier_config_server
+cargo build --release
+# Output: target/release/libeasytier_config_server.so
+```
+
+---
+
+## Building All Crates
+
+### Quick Build
+
+```bash
+./build_all.sh
+```
+
+This will:
+1. Build all 4 crates in dependency order
+2. Generate C headers for each
+3. Display generated libraries
+4. Report any errors
+
+### Manual Build
+
+```bash
+# Build workspace
+cargo build --all --release
+
+# Generate headers
+cd easytier_common && cbindgen --config cbindgen.toml --output include/easytier_common.h
+cd easytier_device_client && cbindgen --config cbindgen.toml --output include/easytier_device_client.h
+cd easytier_network_gateway && cbindgen --config cbindgen.toml --output include/easytier_network_gateway.h
+cd easytier_config_server && cbindgen --config cbindgen.toml --output include/easytier_config_server.h
+```
+
+### Cross-Compilation
+
+```bash
+# For ARM64 devices
+cargo build --target aarch64-unknown-linux-gnu --release
+
+# For x86_64 servers
+cargo build --target x86_64-unknown-linux-gnu --release
+```
+
+---
+
+## Development Workflow
+
+### Adding New Features
+
+**For device functionality** (e.g., new device capabilities):
+→ Modify `easytier_device_client`
+
+**For server gateway** (e.g., new VPN features):
+→ Modify `easytier_network_gateway`
+
+**For device management** (e.g., new approval workflows):
+→ Modify `easytier_config_server`
+
+**For shared utilities** (e.g., new logging formats):
+→ Modify `easytier_common`
+
+### Testing Changes
+
+```bash
+# Test specific crate
+cargo test -p easytier_config_server
+
+# Test with feature flags
+cargo test -p easytier_config_server --features geoip
+
+# Test all crates
+cargo test --all
+```
+
+---
+
+## Database Migrations
+
+Migrations are managed by `sea-orm-migration` in `easytier_config_server`.
+
+### Current Migrations
+
+| ID | Name | Purpose |
+|----|------|---------|
+| 000002 | create_devices_table | Creates devices (no network fields) |
+| 000005 | create_organizations_table | Creates organizations |
+| 000008 | update_device_status_enum | Updates device status enum |
+| 000010 | **create_device_networks_table** | **NEW: Creates device_networks** |
+| 000011 | **migrate_network_data** | **NEW: Migrates data + drops old columns** |
+
+### Running Migrations
+
+Migrations run automatically when config_server initializes.
+
+Manual migration:
+```bash
+cd easytier_config_server
+sea-orm-cli migrate up
+```
+
+---
+
+## Examples
+
+See `examples/` directory:
+- `cortex_agent_integration.py` - Python device client example
+- `cortex_server_gateway.go` - Go gateway service example
+- `cortex_server_config_server.go` - Go config server example
+
+---
+
+## Documentation
+
+- [Separation Plan](SEPARATION_PLAN.md) - Detailed architecture plan
+- [Migration Guide](MIGRATION_GUIDE.md) - Step-by-step migration instructions
+- [Progress](SEPARATION_PROGRESS.md) - Implementation progress tracker
+
+---
+
+## Requirements
+
+### Build Requirements
 
 - Rust 2021 edition
-- Protocol Buffers compiler (`protoc`) - **Required for building**
-- EasyTier dependency (GitHub: v2.4.2)
-- MySQL database (for web features)
-- cbindgen for C header generation
+- Protocol Buffers compiler (`protoc`)
+- cbindgen (`cargo install cbindgen`)
+- MySQL 8.0+ (for config_server)
 
-### Installing Protocol Buffers Compiler
+### Runtime Requirements
 
-The project requires `protoc` (Protocol Buffers compiler) to build successfully. Install it using your system's package manager:
+**cortex_agent**:
+- `libeasytier_device_client.so`
+- Python 3.8+
+- Network connectivity to cortex_server
 
-#### Ubuntu/Debian
-```bash
-sudo apt-get update
-sudo apt-get install protobuf-compiler
-```
+**cortex_server**:
+- `libeasytier_network_gateway.so`
+- `libeasytier_config_server.so`
+- MySQL database
+- GeoIP2 database (optional)
 
-#### macOS (Homebrew)
-```bash
-brew install protobuf
-```
-
-#### Windows (Chocolatey)
-```bash
-choco install protoc
-```
-
-#### Manual Installation
-Download the latest release from the [Protocol Buffers releases page](https://github.com/protocolbuffers/protobuf/releases) <mcreference link="https://github.com/protocolbuffers/protobuf/releases" index="0">0</mcreference> and add the `protoc` binary to your PATH.
-
-For more information, see the [prost-build documentation](https://docs.rs/prost-build/#sourcing-protoc) <mcreference link="https://docs.rs/prost-build/#sourcing-protoc" index="1">1</mcreference>.
-
-## Generated Headers
-
-The build process automatically generates C headers:
-- `include/easytier_bridge.h` - Main FFI interface
-
-## Database Support
-
-When web features are enabled, the crate supports:
-- MySQL integration via sea-orm
-- Database migrations
-- Session storage
-- GeoIP data storage
-
-## Testing
-
-The crate includes comprehensive test suites from both original crates:
-- Unit tests for core functionality
-- Integration tests for web features
-- Database testing with mock support
-- FFI testing
-
-Run tests with:
-```bash
-cargo test
-```
-
-For server-specific tests:
-```bash
-cargo test --features server
-```
-
-For client-specific tests:
-```bash
-cargo test --features client
-```
-
-## Architecture
-
-The unified crate maintains a clean separation between server and client functionality:
-
-```
-src/
-├── lib.rs                    # Main library with unified FFI
-├── logging.rs               # Shared logging functionality
-├── stun_wrapper.rs          # Core STUN functionality
-├── easytier_web_client.rs   # Core web client functionality
-├── client_manager/          # Web client management (conditional)
-├── db/                      # Database integration (conditional)
-├── config.rs               # Web configuration (conditional)
-├── config_srv.rs           # Web config server (conditional)
-└── network_config_srv_ffi.rs # Web FFI functions (conditional)
-```
-
-## Migration from Separate Crates
-
-If you were previously using the separate crates:
-
-### From `cortex-easytier-core`
-```rust
-// Old
-use cortex_easytier_core::*;
-
-// New
-use cortex_easytier_bridge::*;
-```
-
-### From `cortex-easytier-web`
-```rust
-// Old
-use cortex_easytier_web::*;
-
-// New
-use cortex_easytier_bridge::*;
-// Ensure web features are enabled (default)
-```
+---
 
 ## License
 
-MIT License
+MIT License - See individual crate LICENSE files
 
 ## Authors
 
 Cortex Team
+
+---
+
+## Changelog
+
+### v0.2.0 (2025-10-15) - Multi-Crate Architecture
+
+**Breaking Changes**:
+- Split monolithic crate into 4 focused crates
+- Database schema changed (multiple networks per device)
+- FFI function signatures updated
+
+**Improvements**:
+- Builder API for gateway configuration (cleaner, type-safe)
+- Support for multiple network instances per device
+- Clear separation of concerns
+- Reduced binary sizes for cortex_agent
+
+**Migration**: See [MIGRATION_GUIDE.md](MIGRATION_GUIDE.md)
+
+### v0.1.0 - Initial monolithic release
+- Combined all functionality in single crate
