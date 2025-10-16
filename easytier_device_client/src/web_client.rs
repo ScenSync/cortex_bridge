@@ -5,6 +5,10 @@ use easytier::common::config::TomlConfigLoader;
 use easytier::common::global_ctx::GlobalCtx;
 use easytier::common::set_default_machine_id;
 use easytier::connector::create_connector_by_url;
+use easytier::proto::cli::{PeerManageRpcClientFactory, ShowNodeInfoRequest};
+use easytier::proto::rpc_impl::standalone::StandAloneClient;
+use easytier::proto::rpc_types::controller::BaseController;
+use easytier::tunnel::tcp::TcpTunnelConnector;
 use easytier::tunnel::IpVersion;
 use easytier::web_client::WebClient;
 use easytier_common::{c_str_to_string, set_error_msg};
@@ -240,6 +244,43 @@ pub unsafe extern "C" fn cortex_stop_web_client(instance_name: *const c_char) ->
     }
 }
 
+/// Helper function to query virtual IP via RPC
+async fn query_virtual_ip_via_rpc() -> String {
+    let mut rpc_client = StandAloneClient::new(TcpTunnelConnector::new(
+        "tcp://127.0.0.1:15888".parse().unwrap(),
+    ));
+
+    match rpc_client
+        .scoped_client::<PeerManageRpcClientFactory<BaseController>>("".to_string())
+        .await
+    {
+        Ok(peer_client) => {
+            match peer_client
+                .show_node_info(BaseController::default(), ShowNodeInfoRequest::default())
+                .await
+            {
+                Ok(resp) => {
+                    if let Some(node_info) = resp.node_info {
+                        info!("Got node info via RPC: {}", node_info.ipv4_addr);
+                        node_info.ipv4_addr
+                    } else {
+                        warn!("No node_info in RPC response");
+                        "0.0.0.0/0".to_string()
+                    }
+                }
+                Err(e) => {
+                    warn!("RPC show_node_info failed: {}", e);
+                    "0.0.0.0/0".to_string()
+                }
+            }
+        }
+        Err(e) => {
+            warn!("Failed to create RPC client: {}", e);
+            "0.0.0.0/0".to_string()
+        }
+    }
+}
+
 /// Get network info
 ///
 /// # Safety
@@ -275,26 +316,10 @@ pub unsafe extern "C" fn cortex_get_web_client_network_info(
         }
     };
 
-    let (_web_client, global_ctx, _runtime, ip_cache) = instance;
+    let (_web_client, _global_ctx, runtime, _ip_cache) = instance;
 
-    // Get actual network information from cached DHCP-assigned IP or GlobalCtx
-    let virtual_ipv4 = if let Ok(cache) = ip_cache.lock() {
-        if let Some(ref cached_ip) = *cache {
-            cached_ip.clone()
-        } else {
-            // Fall back to GlobalCtx if cache is empty
-            match global_ctx.get_ipv4() {
-                Some(ipv4) => format!("{}", ipv4),
-                None => {
-                    warn!("Virtual IPv4 not assigned yet");
-                    "0.0.0.0/0".to_string()
-                }
-            }
-        }
-    } else {
-        warn!("Failed to lock IP cache");
-        "0.0.0.0/0".to_string()
-    };
+    // Query network info via RPC like easytier-cli does
+    let virtual_ipv4 = runtime.block_on(query_virtual_ip_via_rpc());
 
     // Create network info with actual values
     let network_info = Box::new(CortexNetworkInfo {
