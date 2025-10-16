@@ -43,6 +43,9 @@ tokio-test = "0.4"
 tempfile = "3.8"
 serial_test = "3.0"
 tracing-subscriber.workspace = true
+# Cross-crate integration testing
+easytier_device_client = { path = "../easytier_device_client" }
+easytier_network_gateway = { path = "../easytier_network_gateway" }
 
 [build-dependencies]
 cbindgen = "0.26"
