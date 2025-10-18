@@ -1,0 +1,37 @@
+[package]
+name = "rerun_bridge"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Rerun SDK FFI bridge for ROS data visualization"
+
+[lib]
+name = "rerun_bridge"
+crate-type = ["cdylib", "staticlib", "rlib"]
+
+[dependencies]
+# Rerun SDK (minimal features to avoid wasm-bindgen conflict)
+rerun = { version = "0.21", default-features = false, features = ["sdk"] }
+
+# Serialization
+serde.workspace = true
+serde_json.workspace = true
+
+# Error handling
+thiserror.workspace = true
+anyhow.workspace = true
+
+# FFI utilities
+libc.workspace = true
+once_cell.workspace = true
+
+# Logging
+tracing.workspace = true
+
+# Async (for potential streaming)
+tokio.workspace = true
+
+[build-dependencies]
+cbindgen = "0.26"
+
