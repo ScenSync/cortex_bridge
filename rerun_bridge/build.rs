@@ -22,4 +22,3 @@ fn main() {
     println!("cargo:rerun-if-changed=src/");
     println!("Generated header file: {:?}", output_file);
 }
-

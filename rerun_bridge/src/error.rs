@@ -13,6 +13,9 @@ pub enum RerunBridgeError {
     #[error("Failed to convert to RRD: {0}")]
     ConversionFailed(String),
 
+    #[error("Failed to serialize to RRD: {0}")]
+    SerializationFailed(String),
+
     #[error("Invalid data format: {0}")]
     InvalidData(String),
 
@@ -21,4 +24,3 @@ pub enum RerunBridgeError {
 }
 
 pub type Result<T> = std::result::Result<T, RerunBridgeError>;
-

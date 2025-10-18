@@ -6,33 +6,37 @@ use crate::{RerunBridgeError, Result};
 pub fn parse_ros_image_cdr(cdr_data: &[u8]) -> Result<(u32, u32, Vec<u8>)> {
     // TODO: Implement proper CDR deserialization
     // For MVP, this is a placeholder
-    
+
     // Simplified parsing (real implementation needs proper CDR decoder)
     if cdr_data.len() < 100 {
-        return Err(RerunBridgeError::InvalidData("CDR data too small".to_string()));
+        return Err(RerunBridgeError::InvalidData(
+            "CDR data too small".to_string(),
+        ));
     }
-    
+
     // Placeholder: extract width, height, data
     // Real implementation would use ros2_rust or custom CDR parser
     let width = 640u32;
     let height = 480u32;
     let rgb_data = vec![0u8; (width * height * 3) as usize];
-    
+
     Ok((width, height, rgb_data))
 }
 
 /// Convert ROS PointCloud2 message (CDR format) to point data
 pub fn parse_ros_pointcloud2_cdr(cdr_data: &[u8]) -> Result<(Vec<f32>, Vec<u8>)> {
     // TODO: Implement proper CDR deserialization
-    
+
     if cdr_data.len() < 100 {
-        return Err(RerunBridgeError::InvalidData("CDR data too small".to_string()));
+        return Err(RerunBridgeError::InvalidData(
+            "CDR data too small".to_string(),
+        ));
     }
-    
+
     // Placeholder
     let points = vec![0.0f32; 300]; // 100 points × 3 coordinates
-    let colors = vec![255u8; 300];  // 100 points × 3 RGB values
-    
+    let colors = vec![255u8; 300]; // 100 points × 3 RGB values
+
     Ok((points, colors))
 }
 
@@ -54,4 +58,3 @@ mod tests {
         assert!(result.is_ok());
     }
 }
-

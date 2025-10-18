@@ -4,6 +4,7 @@ use std::ffi::{c_char, CStr};
 use std::ptr;
 use std::sync::Arc;
 
+use rerun::sink::MemorySinkStorage;
 use rerun::{RecordingStream, RecordingStreamBuilder};
 
 use crate::{set_error_msg, RerunBridgeError, Result};
@@ -11,7 +12,7 @@ use crate::{set_error_msg, RerunBridgeError, Result};
 /// Opaque handle to a Rerun recording
 pub struct RerunRecording {
     stream: Arc<RecordingStream>,
-    _buffer: Vec<u8>,
+    memory_sink: Arc<std::sync::Mutex<MemorySinkStorage>>,
 }
 
 /// Create a new Rerun recording
@@ -43,13 +44,14 @@ pub extern "C" fn rerun_create_recording(application_id: *const c_char) -> *mut 
 }
 
 fn create_recording_internal(app_id: &str) -> Result<RerunRecording> {
-    let stream = RecordingStreamBuilder::new(app_id)
-        .buffered()
+    // Create a recording stream that stores data in memory
+    let (stream, memory_sink) = RecordingStreamBuilder::new(app_id)
+        .memory()
         .map_err(|e| RerunBridgeError::RecordingCreation(e.to_string()))?;
 
     Ok(RerunRecording {
         stream: Arc::new(stream),
-        _buffer: Vec::new(),
+        memory_sink: Arc::new(std::sync::Mutex::new(memory_sink)),
     })
 }
 
@@ -140,10 +142,10 @@ pub extern "C" fn rerun_save_to_rrd(
         Ok(rrd_data) => {
             let len = rrd_data.len();
             let ptr = rrd_data.as_ptr() as *mut u8;
-            
+
             // Transfer ownership to caller
             std::mem::forget(rrd_data);
-            
+
             unsafe {
                 *out_data = ptr;
                 *out_len = len;
@@ -158,13 +160,20 @@ pub extern "C" fn rerun_save_to_rrd(
 }
 
 fn save_to_rrd_internal(recording: &mut RerunRecording) -> Result<Vec<u8>> {
-    // Flush the stream and get RRD bytes
+    // Flush the stream to ensure all data is written
     recording.stream.flush_blocking();
-    
-    // TODO: Implement actual RRD serialization
-    // For now, return empty buffer as placeholder
-    // In production, this would call recording.stream.to_bytes() or similar
-    Ok(Vec::new())
+
+    // Get the RRD data from the MemorySinkStorage
+    let memory_sink = recording.memory_sink.lock().map_err(|e| {
+        RerunBridgeError::SerializationFailed(format!("Failed to lock memory sink: {}", e))
+    })?;
+
+    // Drain all data from the memory sink and convert to bytes
+    let rrd_data = memory_sink
+        .drain_as_bytes()
+        .map_err(|e| RerunBridgeError::SerializationFailed(e.to_string()))?;
+
+    Ok(rrd_data)
 }
 
 #[cfg(test)]
@@ -180,4 +189,3 @@ mod tests {
         rerun_destroy_recording(handle);
     }
 }
-

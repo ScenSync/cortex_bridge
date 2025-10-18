@@ -7,13 +7,13 @@ use std::ffi::{c_char, CString};
 use std::ptr;
 use std::sync::Mutex;
 
-mod recording;
 mod converters;
 mod error;
+mod recording;
 
-pub use recording::*;
 pub use converters::*;
 pub use error::*;
+pub use recording::*;
 
 // Global error message storage for FFI
 static ERROR_MSG: once_cell::sync::Lazy<Mutex<Vec<u8>>> =
@@ -70,11 +70,10 @@ mod tests {
         set_error_msg("test error");
         let err = rerun_bridge_get_error();
         assert!(!err.is_null());
-        
+
         unsafe {
             let err_str = CStr::from_ptr(err).to_str().unwrap();
             assert_eq!(err_str, "test error");
         }
     }
 }
-

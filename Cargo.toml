@@ -4,6 +4,7 @@ members = [
     "easytier_device_client",
     "easytier_config_server",
     "easytier_network_gateway",
+    "rerun_bridge",
 ]
 resolver = "2"
 
