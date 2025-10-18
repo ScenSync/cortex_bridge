@@ -11,11 +11,12 @@ use crate::{set_error_msg, RerunBridgeError, Result};
 /// Opaque handle to a Rerun recording
 pub struct RerunRecording {
     stream: Arc<RecordingStream>,
-    buffer: Vec<u8>,
+    _buffer: Vec<u8>,
 }
 
 /// Create a new Rerun recording
 #[no_mangle]
+#[allow(clippy::not_unsafe_ptr_arg_deref)]
 pub extern "C" fn rerun_create_recording(application_id: *const c_char) -> *mut RerunRecording {
     if application_id.is_null() {
         set_error_msg("application_id is null");
@@ -48,12 +49,13 @@ fn create_recording_internal(app_id: &str) -> Result<RerunRecording> {
 
     Ok(RerunRecording {
         stream: Arc::new(stream),
-        buffer: Vec::new(),
+        _buffer: Vec::new(),
     })
 }
 
 /// Destroy a Rerun recording
 #[no_mangle]
+#[allow(clippy::not_unsafe_ptr_arg_deref)]
 pub extern "C" fn rerun_destroy_recording(handle: *mut RerunRecording) {
     if !handle.is_null() {
         unsafe {
@@ -64,6 +66,7 @@ pub extern "C" fn rerun_destroy_recording(handle: *mut RerunRecording) {
 
 /// Log image data to recording
 #[no_mangle]
+#[allow(clippy::not_unsafe_ptr_arg_deref)]
 pub extern "C" fn rerun_log_image(
     handle: *mut RerunRecording,
     entity_path: *const c_char,
@@ -120,6 +123,7 @@ fn log_image_internal(
 
 /// Save recording to RRD format
 #[no_mangle]
+#[allow(clippy::not_unsafe_ptr_arg_deref)]
 pub extern "C" fn rerun_save_to_rrd(
     handle: *mut RerunRecording,
     out_data: *mut *mut u8,
@@ -166,6 +170,7 @@ fn save_to_rrd_internal(recording: &mut RerunRecording) -> Result<Vec<u8>> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::ffi::CString;
 
     #[test]
     fn test_create_and_destroy_recording() {

@@ -51,6 +51,7 @@ pub extern "C" fn rerun_bridge_free_string(s: *const c_char) {
 
 /// Free RRD data buffer
 #[no_mangle]
+#[allow(clippy::not_unsafe_ptr_arg_deref)]
 pub extern "C" fn rerun_bridge_free_rrd_data(data: *mut u8, len: usize) {
     if !data.is_null() && len > 0 {
         unsafe {
@@ -62,6 +63,7 @@ pub extern "C" fn rerun_bridge_free_rrd_data(data: *mut u8, len: usize) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::ffi::CStr;
 
     #[test]
     fn test_error_handling() {
