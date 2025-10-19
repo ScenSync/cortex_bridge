@@ -12,7 +12,7 @@ crate-type = ["cdylib", "staticlib", "rlib"]
 
 [dependencies]
 # Rerun SDK (minimal features to avoid wasm-bindgen conflict)
-rerun = { version = "0.21", default-features = false, features = ["sdk"] }
+rerun = { version = "0.26", default-features = false, features = ["sdk"] }
 
 # Serialization
 serde.workspace = true
@@ -26,7 +26,8 @@ anyhow.workspace = true
 libc.workspace = true
 once_cell.workspace = true
 
-# Logging
+# Logging (use easytier_common for unified logging)
+easytier_common = { path = "../easytier_common" }
 tracing.workspace = true
 
 # Async (for potential streaming)

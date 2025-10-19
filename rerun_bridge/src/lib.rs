@@ -15,6 +15,10 @@ pub use converters::*;
 pub use error::*;
 pub use recording::*;
 
+// Re-export logging macros from easytier_common (avoid name conflict with error module)
+pub use easytier_common::{debug, info, warn, trace};
+pub use easytier_common::error as log_error;
+
 // Global error message storage for FFI
 static ERROR_MSG: once_cell::sync::Lazy<Mutex<Vec<u8>>> =
     once_cell::sync::Lazy::new(|| Mutex::new(Vec::new()));
