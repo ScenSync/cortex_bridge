@@ -409,7 +409,7 @@ pub fn parse_ros_transform_cdr(cdr_data: &[u8]) -> Result<Transform> {
     let qw = reader.read_f64()?;
     
     crate::debug!(
-        "🔄 Parsed Transform: {} -> {}, translation=[{:.3}, {:.3}, {:.3}]",
+        "Parsed Transform: {} -> {}, translation=[{:.3}, {:.3}, {:.3}]",
         frame_id, child_frame_id, tx, ty, tz
     );
     
@@ -601,6 +601,146 @@ pub fn parse_ros_log_cdr(cdr_data: &[u8]) -> Result<LogMessage> {
         function,
         line,
     })
+}
+
+// ============================================================================
+// IMU Parsing
+// ============================================================================
+
+/// IMU data for visualization
+#[derive(Debug)]
+pub struct ImuData {
+    pub timestamp_sec: u32,
+    pub timestamp_nanosec: u32,
+    pub frame_id: String,
+    pub orientation: [f64; 4],        // Quaternion [x, y, z, w]
+    pub angular_velocity: [f64; 3],   // rad/s [x, y, z]
+    pub linear_acceleration: [f64; 3], // m/s^2 [x, y, z]
+}
+
+/// Parse ROS IMU message (sensor_msgs/msg/Imu)
+///
+/// Structure:
+/// - std_msgs/Header header
+/// - geometry_msgs/Quaternion orientation (x, y, z, w)
+/// - float64[9] orientation_covariance
+/// - geometry_msgs/Vector3 angular_velocity (x, y, z)
+/// - float64[9] angular_velocity_covariance
+/// - geometry_msgs/Vector3 linear_acceleration (x, y, z)
+/// - float64[9] linear_acceleration_covariance
+pub fn parse_ros_imu_cdr(cdr_data: &[u8]) -> Result<ImuData> {
+    let mut reader = CdrReader::new(cdr_data)?;
+    
+    // Parse Header
+    let stamp_sec = reader.read_u32()?;
+    let stamp_nanosec = reader.read_u32()?;
+    let frame_id = reader.read_string()?;
+    
+    // Parse Orientation (Quaternion)
+    reader.align(8); // quaternion fields are f64
+    let qx = reader.read_f64()?;
+    let qy = reader.read_f64()?;
+    let qz = reader.read_f64()?;
+    let qw = reader.read_f64()?;
+    
+    // Skip orientation covariance (9 f64 values)
+    for _ in 0..9 {
+        let _ = reader.read_f64()?;
+    }
+    
+    // Parse Angular Velocity (Vector3)
+    let angular_x = reader.read_f64()?;
+    let angular_y = reader.read_f64()?;
+    let angular_z = reader.read_f64()?;
+    
+    // Skip angular velocity covariance (9 f64 values)
+    for _ in 0..9 {
+        let _ = reader.read_f64()?;
+    }
+    
+    // Parse Linear Acceleration (Vector3)
+    let accel_x = reader.read_f64()?;
+    let accel_y = reader.read_f64()?;
+    let accel_z = reader.read_f64()?;
+    
+    crate::debug!(
+        "🎯 Parsed IMU: frame={}, accel=[{:.2}, {:.2}, {:.2}], angular=[{:.2}, {:.2}, {:.2}]",
+        frame_id, accel_x, accel_y, accel_z, angular_x, angular_y, angular_z
+    );
+    
+    Ok(ImuData {
+        timestamp_sec: stamp_sec,
+        timestamp_nanosec: stamp_nanosec,
+        frame_id,
+        orientation: [qx, qy, qz, qw],
+        angular_velocity: [angular_x, angular_y, angular_z],
+        linear_acceleration: [accel_x, accel_y, accel_z],
+    })
+}
+
+// ============================================================================
+// CompressedImage Parsing
+// ============================================================================
+
+/// Parse ROS CompressedImage message (sensor_msgs/msg/CompressedImage)
+///
+/// Structure:
+/// - std_msgs/Header header
+/// - string format (e.g., "jpeg", "png", "bgr8; jpeg compressed bgr8")
+/// - uint8[] data (compressed image data)
+pub fn parse_ros_compressed_image_cdr(cdr_data: &[u8]) -> Result<(String, Vec<u8>)> {
+    let mut reader = CdrReader::new(cdr_data)?;
+    
+    // Parse Header
+    let _stamp_sec = reader.read_u32()?;
+    let _stamp_nanosec = reader.read_u32()?;
+    let _frame_id = reader.read_string()?;
+    
+    // Parse format string
+    let format = reader.read_string()?;
+    
+    // Read compressed data
+    let data_len = reader.read_sequence_length()? as usize;
+    let compressed_data = reader.read_bytes(data_len)?;
+    
+    crate::debug!(
+        "🖼️  Parsed CompressedImage: format={}, compressed_size={} bytes",
+        format, data_len
+    );
+    
+    Ok((format, compressed_data))
+}
+
+/// Decode compressed image data to RGB8
+/// Supports JPEG and PNG formats
+pub fn decode_compressed_image(format: &str, compressed_data: &[u8]) -> Result<(u32, u32, Vec<u8>)> {
+    // Check if format indicates JPEG or PNG
+    let is_jpeg = format.contains("jpeg") || format.contains("jpg");
+    let is_png = format.contains("png");
+    
+    if !is_jpeg && !is_png {
+        return Err(RerunBridgeError::InvalidData(
+            format!("Unsupported compressed image format: {}", format)
+        ));
+    }
+    
+    // Use image crate to decode
+    let img = image::load_from_memory(compressed_data)
+        .map_err(|e| RerunBridgeError::InvalidData(format!("Failed to decode image: {}", e)))?;
+    
+    let width = img.width();
+    let height = img.height();
+    
+    // Convert to RGB8
+    let rgb_img = img.to_rgb8();
+    let rgb_data = rgb_img.into_raw();
+    
+    crate::debug!(
+        "🖼️  Decoded compressed image: {}x{}, {} bytes",
+        width, height, rgb_data.len()
+    );
+    
+    Ok((width, height, rgb_data))
 }
 
 #[cfg(test)]

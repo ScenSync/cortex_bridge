@@ -58,6 +58,10 @@ use std::sync::Arc;
 use rerun::sink::MemorySinkStorage;
 use rerun::{RecordingStream, RecordingStreamBuilder};
 
+use crate::converters::{
+    parse_ros_image_cdr, parse_ros_pointcloud2_cdr, parse_ros_imu_cdr,
+    parse_ros_compressed_image_cdr, decode_compressed_image,
+};
 use crate::{set_error_msg, RerunBridgeError, Result};
 
 /// Opaque handle to a Rerun recording
@@ -222,7 +226,8 @@ pub extern "C" fn rerun_save_to_rrd(
 
 fn save_to_rrd_internal(recording: &mut RerunRecording) -> Result<Vec<u8>> {
     // Flush the stream to ensure all data is written
-    recording.stream.flush_blocking();
+    recording.stream.flush_blocking()
+        .map_err(|e| RerunBridgeError::SerializationFailed(format!("Failed to flush stream: {}", e)))?;
 
     // Get the RRD data from the MemorySinkStorage
     let memory_sink = recording.memory_sink.lock().map_err(|e| {
@@ -414,7 +419,8 @@ pub extern "C" fn rerun_streaming_flush_chunk(
 
 fn streaming_flush_chunk_internal(recording: &mut RerunStreamingRecording) -> Result<Vec<u8>> {
     // Step 1: Flush the stream to ensure recent logs are committed to the memory sink
-    recording.stream.flush_blocking();
+    recording.stream.flush_blocking()
+        .map_err(|e| RerunBridgeError::SerializationFailed(format!("Failed to flush stream: {}", e)))?;
 
     // Step 2: Drain accumulated RRD data from the memory sink
     // IMPORTANT: drain_as_bytes() returns ONLY the new data since the last drain
@@ -428,12 +434,284 @@ fn streaming_flush_chunk_internal(recording: &mut RerunStreamingRecording) -> Re
         .map_err(|e| RerunBridgeError::SerializationFailed(e.to_string()))?;
 
     if new_rrd_chunk.is_empty() {
-        crate::trace!("🔄 Streaming flush: no new data");
+        crate::trace!("Streaming flush: no new data");
     } else {
-        crate::debug!("🔄 Streaming flush: extracted {} bytes of new RRD data", new_rrd_chunk.len());
+        crate::debug!("Streaming flush: extracted {} bytes of new RRD data", new_rrd_chunk.len());
     }
     
     Ok(new_rrd_chunk)
+}
+
+// ============================================================================
+// Advanced Logging Functions with CDR Parsing
+// ============================================================================
+
+/// Log ROS Image message (CDR format) to recording
+/// This parses the CDR data and extracts the image
+#[no_mangle]
+#[allow(clippy::not_unsafe_ptr_arg_deref)]
+pub extern "C" fn rerun_log_ros_image_cdr(
+    handle: *mut RerunRecording,
+    entity_path: *const c_char,
+    cdr_data: *const u8,
+    cdr_len: usize,
+) -> i32 {
+    if handle.is_null() || entity_path.is_null() || cdr_data.is_null() {
+        set_error_msg("Null pointer passed to rerun_log_ros_image_cdr");
+        return -1;
+    }
+
+    let recording = unsafe { &mut *handle };
+    let path = unsafe {
+        match CStr::from_ptr(entity_path).to_str() {
+            Ok(s) => s,
+            Err(e) => {
+                set_error_msg(&format!("Invalid UTF-8 in entity_path: {}", e));
+                return -1;
+            }
+        }
+    };
+
+    let cdr_bytes = unsafe { std::slice::from_raw_parts(cdr_data, cdr_len) };
+
+    match log_ros_image_cdr_internal(recording, path, cdr_bytes) {
+        Ok(_) => 0,
+        Err(e) => {
+            set_error_msg(&e.to_string());
+            -1
+        }
+    }
+}
+
+fn log_ros_image_cdr_internal(
+    recording: &RerunRecording,
+    entity_path: &str,
+    cdr_data: &[u8],
+) -> Result<()> {
+    // Parse ROS Image CDR message
+    let (width, height, rgb_data) = parse_ros_image_cdr(cdr_data)?;
+    
+    // Create image from parsed RGB8 data
+    let resolution = [width, height];
+    let image = rerun::Image::from_rgb24(rgb_data, resolution);
+    
+    recording
+        .stream
+        .log(entity_path, &image)
+        .map_err(|e| RerunBridgeError::LoggingFailed(e.to_string()))?;
+    
+    Ok(())
+}
+
+/// Log ROS CompressedImage message (CDR format) to recording
+#[no_mangle]
+#[allow(clippy::not_unsafe_ptr_arg_deref)]
+pub extern "C" fn rerun_log_ros_compressed_image_cdr(
+    handle: *mut RerunRecording,
+    entity_path: *const c_char,
+    cdr_data: *const u8,
+    cdr_len: usize,
+) -> i32 {
+    if handle.is_null() || entity_path.is_null() || cdr_data.is_null() {
+        set_error_msg("Null pointer passed to rerun_log_ros_compressed_image_cdr");
+        return -1;
+    }
+
+    let recording = unsafe { &mut *handle };
+    let path = unsafe {
+        match CStr::from_ptr(entity_path).to_str() {
+            Ok(s) => s,
+            Err(e) => {
+                set_error_msg(&format!("Invalid UTF-8 in entity_path: {}", e));
+                return -1;
+            }
+        }
+    };
+
+    let cdr_bytes = unsafe { std::slice::from_raw_parts(cdr_data, cdr_len) };
+
+    match log_ros_compressed_image_cdr_internal(recording, path, cdr_bytes) {
+        Ok(_) => 0,
+        Err(e) => {
+            set_error_msg(&e.to_string());
+            -1
+        }
+    }
+}
+
+fn log_ros_compressed_image_cdr_internal(
+    recording: &RerunRecording,
+    entity_path: &str,
+    cdr_data: &[u8],
+) -> Result<()> {
+    // Parse ROS CompressedImage CDR message
+    let (format, compressed_data) = parse_ros_compressed_image_cdr(cdr_data)?;
+    
+    // Decode compressed image to RGB8
+    let (width, height, rgb_data) = decode_compressed_image(&format, &compressed_data)?;
+    
+    // Create image from decoded RGB8 data
+    let resolution = [width, height];
+    let image = rerun::Image::from_rgb24(rgb_data, resolution);
+    
+    recording
+        .stream
+        .log(entity_path, &image)
+        .map_err(|e| RerunBridgeError::LoggingFailed(e.to_string()))?;
+    
+    Ok(())
+}
+
+/// Log ROS PointCloud2 message (CDR format) to recording
+#[no_mangle]
+#[allow(clippy::not_unsafe_ptr_arg_deref)]
+pub extern "C" fn rerun_log_ros_pointcloud2_cdr(
+    handle: *mut RerunRecording,
+    entity_path: *const c_char,
+    cdr_data: *const u8,
+    cdr_len: usize,
+) -> i32 {
+    if handle.is_null() || entity_path.is_null() || cdr_data.is_null() {
+        set_error_msg("Null pointer passed to rerun_log_ros_pointcloud2_cdr");
+        return -1;
+    }
+
+    let recording = unsafe { &mut *handle };
+    let path = unsafe {
+        match CStr::from_ptr(entity_path).to_str() {
+            Ok(s) => s,
+            Err(e) => {
+                set_error_msg(&format!("Invalid UTF-8 in entity_path: {}", e));
+                return -1;
+            }
+        }
+    };
+
+    let cdr_bytes = unsafe { std::slice::from_raw_parts(cdr_data, cdr_len) };
+
+    match log_ros_pointcloud2_cdr_internal(recording, path, cdr_bytes) {
+        Ok(_) => 0,
+        Err(e) => {
+            set_error_msg(&e.to_string());
+            -1
+        }
+    }
+}
+
+fn log_ros_pointcloud2_cdr_internal(
+    recording: &RerunRecording,
+    entity_path: &str,
+    cdr_data: &[u8],
+) -> Result<()> {
+    // Parse ROS PointCloud2 CDR message
+    let (points, colors) = parse_ros_pointcloud2_cdr(cdr_data)?;
+    
+    if points.is_empty() {
+        crate::warn!("PointCloud2 has no valid points, skipping");
+        return Ok(());
+    }
+    
+    // Create Rerun Points3D with colors
+    let points3d = rerun::Points3D::new(
+        points.chunks_exact(3).map(|p| [p[0], p[1], p[2]]).collect::<Vec<_>>()
+    )
+    .with_colors(
+        colors.chunks_exact(3).map(|c| rerun::Color::from_rgb(c[0], c[1], c[2])).collect::<Vec<_>>()
+    );
+    
+    recording
+        .stream
+        .log(entity_path, &points3d)
+        .map_err(|e| RerunBridgeError::LoggingFailed(e.to_string()))?;
+    
+    Ok(())
+}
+
+/// Log ROS IMU message (CDR format) to recording
+/// Logs both orientation (as transform) and acceleration/angular velocity (as arrows)
+#[no_mangle]
+#[allow(clippy::not_unsafe_ptr_arg_deref)]
+pub extern "C" fn rerun_log_ros_imu_cdr(
+    handle: *mut RerunRecording,
+    entity_path: *const c_char,
+    cdr_data: *const u8,
+    cdr_len: usize,
+) -> i32 {
+    if handle.is_null() || entity_path.is_null() || cdr_data.is_null() {
+        set_error_msg("Null pointer passed to rerun_log_ros_imu_cdr");
+        return -1;
+    }
+
+    let recording = unsafe { &mut *handle };
+    let path = unsafe {
+        match CStr::from_ptr(entity_path).to_str() {
+            Ok(s) => s,
+            Err(e) => {
+                set_error_msg(&format!("Invalid UTF-8 in entity_path: {}", e));
+                return -1;
+            }
+        }
+    };
+
+    let cdr_bytes = unsafe { std::slice::from_raw_parts(cdr_data, cdr_len) };
+
+    match log_ros_imu_cdr_internal(recording, path, cdr_bytes) {
+        Ok(_) => 0,
+        Err(e) => {
+            set_error_msg(&e.to_string());
+            -1
+        }
+    }
+}
+
+fn log_ros_imu_cdr_internal(
+    recording: &RerunRecording,
+    entity_path: &str,
+    cdr_data: &[u8],
+) -> Result<()> {
+    // Parse ROS IMU CDR message
+    let imu_data = parse_ros_imu_cdr(cdr_data)?;
+    
+    // Log orientation as a transform
+    let transform = rerun::Transform3D::from_rotation(
+        rerun::Quaternion::from_xyzw([
+            imu_data.orientation[0] as f32,
+            imu_data.orientation[1] as f32,
+            imu_data.orientation[2] as f32,
+            imu_data.orientation[3] as f32,
+        ])
+    );
+    
+    recording
+        .stream
+        .log(entity_path, &transform)
+        .map_err(|e| RerunBridgeError::LoggingFailed(e.to_string()))?;
+    
+    // Log linear acceleration as an arrow
+    let accel_magnitude = (
+        imu_data.linear_acceleration[0].powi(2) +
+        imu_data.linear_acceleration[1].powi(2) +
+        imu_data.linear_acceleration[2].powi(2)
+    ).sqrt();
+    
+    if accel_magnitude > 0.01 {
+        let accel_arrow = rerun::Arrows3D::from_vectors(
+            [[
+                imu_data.linear_acceleration[0] as f32,
+                imu_data.linear_acceleration[1] as f32,
+                imu_data.linear_acceleration[2] as f32,
+            ]]
+        )
+        .with_colors([rerun::Color::from_rgb(255, 0, 0)]); // Red for acceleration
+        
+        let accel_path = format!("{}/acceleration", entity_path);
+        recording
+            .stream
+            .log(accel_path.as_str(), &accel_arrow)
+            .map_err(|e| RerunBridgeError::LoggingFailed(e.to_string()))?;
+    }
+    
+    Ok(())
 }
 
 #[cfg(test)]

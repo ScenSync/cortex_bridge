@@ -99,3 +99,37 @@ int32_t rerun_streaming_log_image(struct RerunStreamingRecording *handle,
 int32_t rerun_streaming_flush_chunk(struct RerunStreamingRecording *handle,
                                     uint8_t **out_data,
                                     uintptr_t *out_len);
+
+/**
+ * Log ROS Image message (CDR format) to recording
+ * This parses the CDR data and extracts the image
+ */
+int32_t rerun_log_ros_image_cdr(struct RerunRecording *handle,
+                                const char *entity_path,
+                                const uint8_t *cdr_data,
+                                uintptr_t cdr_len);
+
+/**
+ * Log ROS CompressedImage message (CDR format) to recording
+ */
+int32_t rerun_log_ros_compressed_image_cdr(struct RerunRecording *handle,
+                                           const char *entity_path,
+                                           const uint8_t *cdr_data,
+                                           uintptr_t cdr_len);
+
+/**
+ * Log ROS PointCloud2 message (CDR format) to recording
+ */
+int32_t rerun_log_ros_pointcloud2_cdr(struct RerunRecording *handle,
+                                      const char *entity_path,
+                                      const uint8_t *cdr_data,
+                                      uintptr_t cdr_len);
+
+/**
+ * Log ROS IMU message (CDR format) to recording
+ * Logs both orientation (as transform) and acceleration/angular velocity (as arrows)
+ */
+int32_t rerun_log_ros_imu_cdr(struct RerunRecording *handle,
+                              const char *entity_path,
+                              const uint8_t *cdr_data,
+                              uintptr_t cdr_len);
