@@ -33,12 +33,12 @@ rustflags = ["-C", "link-arg=-fuse-ld=lld"]
 
 # macOS ARM64 配置（本地开发）
 [target.aarch64-apple-darwin]
-# macOS 使用系统链接器即可，已经很快
-rustflags = ["-C", "link-arg=-fuse-ld=ld64"]
+# macOS 15+ 需要使用 classic linker
+rustflags = ["-C", "link-arg=-Wl,-ld_classic"]
 
 # macOS x86_64 配置
 [target.x86_64-apple-darwin]
-rustflags = ["-C", "link-arg=-fuse-ld=ld64"]
+rustflags = ["-C", "link-arg=-Wl,-ld_classic"]
 
 # ============================================================================
 # 未来优化选项（需要 nightly Rust）
