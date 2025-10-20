@@ -3,32 +3,11 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-#define INT8 1
-
-#define UINT8 2
-
-#define INT16 3
-
-#define UINT16 4
-
-#define INT32 5
-
-#define UINT32 6
-
-#define FLOAT32 7
-
-#define FLOAT64 8
-
 /**
- * Opaque handle to a Rerun recording
+ * Streaming encoder for generating proper RRD format from MCAP data
+ * This uses `re_log_encoding::Encoder` which generates valid RRD files with `RRF2` headers
  */
-typedef struct RerunRecording RerunRecording;
-
-/**
- * Opaque handle to a streaming Rerun recording
- * This maintains state across multiple chunk writes for incremental streaming
- */
-typedef struct RerunStreamingRecording RerunStreamingRecording;
+typedef struct RerunStreamingEncoder RerunStreamingEncoder;
 
 /**
  * Get last error message
@@ -46,90 +25,30 @@ void rerun_bridge_free_string(const char *s);
 void rerun_bridge_free_rrd_data(uint8_t *data, uintptr_t len);
 
 /**
- * Create a new Rerun recording
+ * Create a new streaming encoder
+ * This is the CORRECT way to generate RRD format for streaming
  */
-struct RerunRecording *rerun_create_recording(const char *application_id);
+struct RerunStreamingEncoder *rerun_encoder_create(const char *application_id);
 
 /**
- * Destroy a Rerun recording
+ * Process MCAP chunk and return RRD bytes
+ * This converts MCAP data to RRD format and returns only new data since last call
  */
-void rerun_destroy_recording(struct RerunRecording *handle);
+int32_t rerun_encoder_process_mcap_chunk(struct RerunStreamingEncoder *handle,
+                                         const uint8_t *mcap_data,
+                                         uintptr_t mcap_len,
+                                         uint8_t **out_data,
+                                         uintptr_t *out_len);
 
 /**
- * Log image data to recording
+ * Get initial RRD header chunk (call immediately after creation)
+ * This returns the RRF2 header + metadata before any data is logged
  */
-int32_t rerun_log_image(struct RerunRecording *handle,
-                        const char *entity_path,
-                        uint32_t width,
-                        uint32_t height,
-                        const uint8_t *data,
-                        uintptr_t data_len);
+int32_t rerun_encoder_get_initial_chunk(struct RerunStreamingEncoder *handle,
+                                        uint8_t **out_data,
+                                        uintptr_t *out_len);
 
 /**
- * Save recording to RRD format
+ * Destroy streaming encoder
  */
-int32_t rerun_save_to_rrd(struct RerunRecording *handle, uint8_t **out_data, uintptr_t *out_len);
-
-/**
- * Create a new streaming Rerun recording
- * This recording can be used to incrementally add data and extract RRD chunks
- */
-struct RerunStreamingRecording *rerun_create_streaming_recording(const char *application_id);
-
-/**
- * Destroy a streaming Rerun recording
- */
-void rerun_destroy_streaming_recording(struct RerunStreamingRecording *handle);
-
-/**
- * Log image data to streaming recording
- */
-int32_t rerun_streaming_log_image(struct RerunStreamingRecording *handle,
-                                  const char *entity_path,
-                                  uint32_t width,
-                                  uint32_t height,
-                                  const uint8_t *data,
-                                  uintptr_t data_len);
-
-/**
- * Flush and get any new RRD data from the streaming recording
- * Returns new RRD chunk data that should be sent to client
- * This is non-destructive - the recording stream continues
- */
-int32_t rerun_streaming_flush_chunk(struct RerunStreamingRecording *handle,
-                                    uint8_t **out_data,
-                                    uintptr_t *out_len);
-
-/**
- * Log ROS Image message (CDR format) to recording
- * This parses the CDR data and extracts the image
- */
-int32_t rerun_log_ros_image_cdr(struct RerunRecording *handle,
-                                const char *entity_path,
-                                const uint8_t *cdr_data,
-                                uintptr_t cdr_len);
-
-/**
- * Log ROS CompressedImage message (CDR format) to recording
- */
-int32_t rerun_log_ros_compressed_image_cdr(struct RerunRecording *handle,
-                                           const char *entity_path,
-                                           const uint8_t *cdr_data,
-                                           uintptr_t cdr_len);
-
-/**
- * Log ROS PointCloud2 message (CDR format) to recording
- */
-int32_t rerun_log_ros_pointcloud2_cdr(struct RerunRecording *handle,
-                                      const char *entity_path,
-                                      const uint8_t *cdr_data,
-                                      uintptr_t cdr_len);
-
-/**
- * Log ROS IMU message (CDR format) to recording
- * Logs both orientation (as transform) and acceleration/angular velocity (as arrows)
- */
-int32_t rerun_log_ros_imu_cdr(struct RerunRecording *handle,
-                              const char *entity_path,
-                              const uint8_t *cdr_data,
-                              uintptr_t cdr_len);
+void rerun_encoder_destroy(struct RerunStreamingEncoder *handle);

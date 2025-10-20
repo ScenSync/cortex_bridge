@@ -7,17 +7,15 @@ use std::ffi::{c_char, CString};
 use std::ptr;
 use std::sync::Mutex;
 
-mod converters;
 mod error;
 mod recording;
 
-pub use converters::*;
 pub use error::*;
 pub use recording::*;
 
 // Re-export logging macros from easytier_common (avoid name conflict with error module)
-pub use easytier_common::{debug, info, warn, trace};
 pub use easytier_common::error as log_error;
+pub use easytier_common::{debug, info, trace, warn};
 
 // Global error message storage for FFI
 static ERROR_MSG: once_cell::sync::Lazy<Mutex<Vec<u8>>> =
