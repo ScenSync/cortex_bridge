@@ -401,7 +401,6 @@ pub extern "C" fn rerun_encoder_destroy(handle: *mut RerunStreamingEncoder) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::rerun_bridge_free_rrd_data;
     use std::ffi::CString;
 
     #[test]
