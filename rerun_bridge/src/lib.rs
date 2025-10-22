@@ -85,7 +85,7 @@ mod tests {
         set_error_msg("first error");
         let err1 = rerun_bridge_get_error();
         assert!(!err1.is_null());
-        
+
         unsafe {
             let err_str1 = CStr::from_ptr(err1).to_str().unwrap();
             assert_eq!(err_str1, "first error");
@@ -95,10 +95,13 @@ mod tests {
         set_error_msg("second error");
         let err2 = rerun_bridge_get_error();
         assert!(!err2.is_null());
-        
+
         unsafe {
             let err_str2 = CStr::from_ptr(err2).to_str().unwrap();
-            assert_eq!(err_str2, "second error", "New error should overwrite old one");
+            assert_eq!(
+                err_str2, "second error",
+                "New error should overwrite old one"
+            );
         }
     }
 
@@ -107,10 +110,10 @@ mod tests {
         // Test freeing a CString
         let test_str = CString::new("test string").unwrap();
         let raw_ptr = test_str.into_raw();
-        
+
         // Free the string
         rerun_bridge_free_string(raw_ptr);
-        
+
         // Test freeing null pointer (should be safe)
         rerun_bridge_free_string(ptr::null());
     }
@@ -122,9 +125,9 @@ mod tests {
         let len = test_data.len();
         let ptr = test_data.as_ptr() as *mut u8;
         std::mem::forget(test_data); // Prevent double-free
-        
+
         rerun_bridge_free_rrd_data(ptr, len);
-        
+
         // Test freeing null pointer (should be safe)
         rerun_bridge_free_rrd_data(ptr::null_mut(), 0);
         rerun_bridge_free_rrd_data(ptr::null_mut(), 100);
@@ -136,10 +139,13 @@ mod tests {
         set_error_msg("Error with newline\nand tab\tand quotes\"");
         let err = rerun_bridge_get_error();
         assert!(!err.is_null());
-        
+
         unsafe {
             let err_str = CStr::from_ptr(err).to_str().unwrap();
-            assert!(err_str.contains("newline"), "Should contain special characters");
+            assert!(
+                err_str.contains("newline"),
+                "Should contain special characters"
+            );
             assert!(err_str.contains("\n"), "Should preserve newlines");
         }
     }
@@ -149,10 +155,10 @@ mod tests {
         // Test setting an empty error message
         set_error_msg("");
         let err = rerun_bridge_get_error();
-        
+
         // Should still return a valid pointer (to null terminator)
         assert!(!err.is_null());
-        
+
         unsafe {
             let err_str = CStr::from_ptr(err).to_str().unwrap();
             assert_eq!(err_str, "", "Empty error message should be preserved");

@@ -499,7 +499,10 @@ mod tests {
         let mcap_data = match std::fs::read(mcap_path) {
             Ok(data) => data,
             Err(e) => {
-                println!("⚠️ Skipping test: Could not read MCAP file at {}: {}", mcap_path, e);
+                println!(
+                    "⚠️ Skipping test: Could not read MCAP file at {}: {}",
+                    mcap_path, e
+                );
                 return;
             }
         };
@@ -670,13 +673,8 @@ mod tests {
         println!("✅ Null handle rejected in process_mcap_chunk");
 
         // Test 6: Null MCAP data
-        let result = rerun_encoder_process_mcap_chunk(
-            handle,
-            ptr::null(),
-            10,
-            &mut out_data,
-            &mut out_len,
-        );
+        let result =
+            rerun_encoder_process_mcap_chunk(handle, ptr::null(), 10, &mut out_data, &mut out_len);
         assert_eq!(result, -1, "Should fail with null MCAP data");
         println!("✅ Null MCAP data rejected");
 
@@ -709,8 +707,11 @@ mod tests {
             println!("✅ Invalid UTF-8 rejected with error: {}", error_str);
             // Error message should mention either UTF-8 or indicate an error occurred
             assert!(
-                error_str.contains("Invalid UTF-8") || error_str.contains("UTF-8") || !error_str.is_empty(),
-                "Should have an error message (got: '{}')", error_str
+                error_str.contains("Invalid UTF-8")
+                    || error_str.contains("UTF-8")
+                    || !error_str.is_empty(),
+                "Should have an error message (got: '{}')",
+                error_str
             );
         }
     }
@@ -749,7 +750,10 @@ mod tests {
             encoder.last_position, initial_size,
             "Buffer position should track initial chunk size"
         );
-        println!("✅ Buffer position correctly tracks at {} bytes", encoder.last_position);
+        println!(
+            "✅ Buffer position correctly tracks at {} bytes",
+            encoder.last_position
+        );
 
         rerun_encoder_destroy(handle);
     }
@@ -776,7 +780,9 @@ mod tests {
 
         // Test multiple writes
         let more_data = b" More data.";
-        writer.write_all(more_data).expect("Second write should succeed");
+        writer
+            .write_all(more_data)
+            .expect("Second write should succeed");
         let all_bytes = writer.get_bytes();
         assert_eq!(
             all_bytes.len(),
@@ -828,7 +834,10 @@ mod tests {
                 );
             }
         } else {
-            println!("✅ Invalid MCAP handled gracefully (returned {} bytes)", rrd_len);
+            println!(
+                "✅ Invalid MCAP handled gracefully (returned {} bytes)",
+                rrd_len
+            );
             if rrd_len > 0 {
                 crate::rerun_bridge_free_rrd_data(rrd_data, rrd_len);
             }
