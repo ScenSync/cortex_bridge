@@ -267,7 +267,7 @@ fn encoder_process_mcap_chunk_internal(
         encoder_state.last_position = current_position;
 
         crate::debug!(
-            "📦 Encoded {} MCAP messages → {} new RRD bytes (total buffer: {} bytes)",
+            " Encoded {} MCAP messages → {} new RRD bytes (total buffer: {} bytes)",
             message_count,
             new_bytes.len(),
             current_position
@@ -364,7 +364,7 @@ pub extern "C" fn rerun_encoder_finalize(
         let len = final_chunk.len();
 
         if len > 0 {
-            crate::info!("📋 Finalized encoder: {} final bytes (end marker)", len);
+            crate::info!("Finalized encoder: {} final bytes (end marker)", len);
             let ptr = final_chunk.as_ptr() as *mut u8;
             std::mem::forget(final_chunk);
             encoder.last_position = current_position;
@@ -474,14 +474,14 @@ mod tests {
 
         // Check if we got final bytes
         if final_len > 0 {
-            println!("📋 Final chunk size: {} bytes", final_len);
+            println!("Final chunk size: {} bytes", final_len);
             assert!(
                 !final_data.is_null(),
                 "Final data pointer should not be null"
             );
             crate::rerun_bridge_free_rrd_data(final_data, final_len);
         } else {
-            println!("📋 No final chunk generated (encoder may not produce end marker for empty streams)");
+            println!("No final chunk generated (encoder may not produce end marker for empty streams)");
         }
 
         rerun_encoder_destroy(handle);
@@ -519,7 +519,7 @@ mod tests {
         let result = rerun_encoder_get_initial_chunk(handle, &mut out_data, &mut out_len);
         assert_eq!(result, 0, "Get initial chunk should succeed");
         if !out_data.is_null() && out_len > 0 {
-            println!("✅ Initial chunk: {} bytes", out_len);
+            println!("Initial chunk: {} bytes", out_len);
             crate::rerun_bridge_free_rrd_data(out_data, out_len);
         }
 
@@ -545,7 +545,7 @@ mod tests {
         assert_eq!(result, 0, "MCAP processing should succeed");
 
         if rrd_len > 0 {
-            println!("✅ Generated RRD data: {} bytes", rrd_len);
+            println!("Generated RRD data: {} bytes", rrd_len);
             assert!(!rrd_data.is_null(), "RRD data pointer should not be null");
             crate::rerun_bridge_free_rrd_data(rrd_data, rrd_len);
         } else {
@@ -579,7 +579,7 @@ mod tests {
         assert_eq!(result, 0, "Should get initial chunk");
 
         if header_len > 0 {
-            println!("📤 Step 1: Initial header = {} bytes", header_len);
+            println!("Step 1: Initial header = {} bytes", header_len);
             // Validate RRF2 magic
             let magic_bytes = unsafe { std::slice::from_raw_parts(header_data, 4.min(header_len)) };
             if magic_bytes.len() >= 4 {
@@ -594,7 +594,7 @@ mod tests {
         let result = rerun_encoder_get_initial_chunk(handle, &mut header_data2, &mut header_len2);
         assert_eq!(result, 0, "Second call should succeed");
         assert_eq!(header_len2, 0, "Should not return header again");
-        println!("✅ Step 2: Second initial chunk call returned 0 bytes (correct)");
+        println!("Step 2: Second initial chunk call returned 0 bytes (correct)");
 
         // Step 3: Process minimal/invalid MCAP (should handle gracefully)
         let empty_mcap = [0u8; 16];
@@ -609,10 +609,10 @@ mod tests {
         );
         // Note: This may fail or succeed with 0 bytes depending on MCAP validity
         if rrd_len > 0 {
-            println!("📤 Step 3: Processed data = {} bytes", rrd_len);
+            println!("Step 3: Processed data = {} bytes", rrd_len);
             crate::rerun_bridge_free_rrd_data(rrd_data, rrd_len);
         } else {
-            println!("✅ Step 3: No data generated from invalid MCAP (expected)");
+            println!("Step 3: No data generated from invalid MCAP (expected)");
         }
 
         // Step 4: Finalize encoder
@@ -621,15 +621,15 @@ mod tests {
         let result = rerun_encoder_finalize(handle, &mut final_data, &mut final_len);
         assert_eq!(result, 0, "Finalize should succeed");
         if final_len > 0 {
-            println!("📤 Step 4: Final chunk = {} bytes", final_len);
+            println!("Step 4: Final chunk = {} bytes", final_len);
             crate::rerun_bridge_free_rrd_data(final_data, final_len);
         } else {
-            println!("✅ Step 4: No final chunk (normal for empty stream)");
+            println!("Step 4: No final chunk (normal for empty stream)");
         }
 
         // Step 5: Cleanup
         rerun_encoder_destroy(handle);
-        println!("✅ Step 5: Destroyed encoder");
+        println!("Step 5: Destroyed encoder");
     }
 
     #[test]
@@ -641,7 +641,7 @@ mod tests {
         assert!(null_handle.is_null(), "Should fail with null app_id");
         let error = crate::rerun_bridge_get_error();
         assert!(!error.is_null(), "Should have error message");
-        println!("✅ Null app_id rejected");
+        println!("Null app_id rejected");
 
         // Test 2: Valid encoder for remaining tests
         let app_id = CString::new("null_safety_test").unwrap();
@@ -651,14 +651,14 @@ mod tests {
         // Test 3: Null output pointers in get_initial_chunk
         let result = rerun_encoder_get_initial_chunk(handle, ptr::null_mut(), ptr::null_mut());
         assert_eq!(result, -1, "Should fail with null output pointers");
-        println!("✅ Null output pointers rejected in get_initial_chunk");
+        println!("Null output pointers rejected in get_initial_chunk");
 
         // Test 4: Null handle in get_initial_chunk
         let mut out_data: *mut u8 = ptr::null_mut();
         let mut out_len: usize = 0;
         let result = rerun_encoder_get_initial_chunk(ptr::null_mut(), &mut out_data, &mut out_len);
         assert_eq!(result, -1, "Should fail with null handle");
-        println!("✅ Null handle rejected in get_initial_chunk");
+        println!("Null handle rejected in get_initial_chunk");
 
         // Test 5: Null pointers in process_mcap_chunk
         let test_data = [0u8; 10];
@@ -670,24 +670,24 @@ mod tests {
             &mut out_len,
         );
         assert_eq!(result, -1, "Should fail with null handle");
-        println!("✅ Null handle rejected in process_mcap_chunk");
+        println!("Null handle rejected in process_mcap_chunk");
 
         // Test 6: Null MCAP data
         let result =
             rerun_encoder_process_mcap_chunk(handle, ptr::null(), 10, &mut out_data, &mut out_len);
         assert_eq!(result, -1, "Should fail with null MCAP data");
-        println!("✅ Null MCAP data rejected");
+        println!("Null MCAP data rejected");
 
         // Test 7: Null pointers in finalize
         let result = rerun_encoder_finalize(ptr::null_mut(), &mut out_data, &mut out_len);
         assert_eq!(result, -1, "Should fail with null handle");
-        println!("✅ Null handle rejected in finalize");
+        println!("Null handle rejected in finalize");
 
         rerun_encoder_destroy(handle);
 
         // Test 8: Destroy null handle (should be safe)
         rerun_encoder_destroy(ptr::null_mut());
-        println!("✅ Destroy null handle is safe");
+        println!("Destroy null handle is safe");
     }
 
     #[test]
@@ -704,7 +704,7 @@ mod tests {
         let error = crate::rerun_bridge_get_error();
         if !error.is_null() {
             let error_str = unsafe { CStr::from_ptr(error).to_str().unwrap_or("") };
-            println!("✅ Invalid UTF-8 rejected with error: {}", error_str);
+            println!("Invalid UTF-8 rejected with error: {}", error_str);
             // Error message should mention either UTF-8 or indicate an error occurred
             assert!(
                 error_str.contains("Invalid UTF-8")
@@ -732,7 +732,7 @@ mod tests {
 
         let initial_size = out_len;
         if out_len > 0 {
-            println!("✅ Initial chunk: {} bytes", out_len);
+            println!("Initial chunk: {} bytes", out_len);
             crate::rerun_bridge_free_rrd_data(out_data, out_len);
         }
 
@@ -742,7 +742,7 @@ mod tests {
         let result = rerun_encoder_get_initial_chunk(handle, &mut out_data, &mut out_len);
         assert_eq!(result, 0);
         assert_eq!(out_len, 0, "Should not return data twice");
-        println!("✅ Second initial chunk call returned 0 bytes");
+        println!("Second initial chunk call returned 0 bytes");
 
         // Verify internal state was updated
         let encoder = unsafe { &*handle };
@@ -751,7 +751,7 @@ mod tests {
             "Buffer position should track initial chunk size"
         );
         println!(
-            "✅ Buffer position correctly tracks at {} bytes",
+            "Buffer position correctly tracks at {} bytes",
             encoder.last_position
         );
 
@@ -790,7 +790,7 @@ mod tests {
             "Should contain all written data"
         );
 
-        println!("✅ SharedBufferWriter works correctly");
+        println!("SharedBufferWriter works correctly");
     }
 
     #[test]
@@ -827,7 +827,7 @@ mod tests {
             let error = crate::rerun_bridge_get_error();
             if !error.is_null() {
                 let error_str = unsafe { CStr::from_ptr(error).to_str().unwrap() };
-                println!("✅ Invalid MCAP rejected with error: {}", error_str);
+                println!("Invalid MCAP rejected with error: {}", error_str);
                 assert!(
                     error_str.contains("MCAP") || error_str.contains("Failed"),
                     "Error should mention MCAP or failure"
@@ -835,7 +835,7 @@ mod tests {
             }
         } else {
             println!(
-                "✅ Invalid MCAP handled gracefully (returned {} bytes)",
+                "Invalid MCAP handled gracefully (returned {} bytes)",
                 rrd_len
             );
             if rrd_len > 0 {
@@ -871,8 +871,8 @@ mod tests {
         let result2 = rerun_encoder_get_initial_chunk(handle2, &mut out_data2, &mut out_len2);
         assert_eq!(result2, 0);
 
-        println!("✅ Encoder 1 initial chunk: {} bytes", out_len1);
-        println!("✅ Encoder 2 initial chunk: {} bytes", out_len2);
+        println!("Encoder 1 initial chunk: {} bytes", out_len1);
+        println!("Encoder 2 initial chunk: {} bytes", out_len2);
 
         if out_len1 > 0 {
             crate::rerun_bridge_free_rrd_data(out_data1, out_len1);
@@ -883,6 +883,6 @@ mod tests {
 
         rerun_encoder_destroy(handle1);
         rerun_encoder_destroy(handle2);
-        println!("✅ Multiple encoders work independently");
+        println!("Multiple encoders work independently");
     }
 }
