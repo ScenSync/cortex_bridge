@@ -401,6 +401,7 @@ pub extern "C" fn rerun_encoder_destroy(handle: *mut RerunStreamingEncoder) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::rerun_bridge_free_rrd_data;
     use std::ffi::CString;
 
     #[test]
@@ -463,7 +464,7 @@ mod tests {
         let result = rerun_encoder_get_initial_chunk(handle, &mut out_data, &mut out_len);
         assert_eq!(result, 0);
         if !out_data.is_null() && out_len > 0 {
-            rerun_bridge_free_rrd_data(out_data, out_len);
+            crate::rerun_bridge_free_rrd_data(out_data, out_len);
         }
 
         // Finalize encoder (should succeed even with no data)
@@ -479,7 +480,7 @@ mod tests {
                 !final_data.is_null(),
                 "Final data pointer should not be null"
             );
-            rerun_bridge_free_rrd_data(final_data, final_len);
+            crate::rerun_bridge_free_rrd_data(final_data, final_len);
         } else {
             println!("📋 No final chunk generated (encoder may not produce end marker for empty streams)");
         }
