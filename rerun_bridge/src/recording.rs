@@ -481,7 +481,9 @@ mod tests {
             );
             crate::rerun_bridge_free_rrd_data(final_data, final_len);
         } else {
-            println!("No final chunk generated (encoder may not produce end marker for empty streams)");
+            println!(
+                "No final chunk generated (encoder may not produce end marker for empty streams)"
+            );
         }
 
         rerun_encoder_destroy(handle);
