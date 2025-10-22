@@ -84,7 +84,7 @@ impl Storage {
             .0
             .org_clients_map
             .entry(stoken.organization_id.clone())
-            .or_insert_with(DashMap::new);
+            .or_default();
 
         let client_info = ClientInfo {
             storage_token: stoken.clone(),

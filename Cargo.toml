@@ -38,7 +38,7 @@ url = "2.5"
 tracing = "0.1.41"
 tracing-subscriber = { version = "0.3.20", features = ["env-filter", "time", "local-time"] }
 tracing-appender = "0.2.3"
-chrono = { version = "0.4.39", features = ["serde"], default-features = false }
+chrono = { version = "0.4.39", features = ["serde"]}
 anyhow = "1.0.94"
 thiserror = "2.0.17"
 gethostname = "1.1.0"
@@ -48,7 +48,7 @@ maxminddb = "0.26.0"
 urlencoding = "2.1"
 
 # Database dependencies - 优化特性
-sea-orm = { version = "1.1", features = ["sqlx-mysql", "runtime-tokio-rustls", "macros"], default-features = false }
+sea-orm = { version = "1.1", features = ["sqlx-mysql", "runtime-tokio-rustls", "macros"]}
 sea-orm-migration = "1.1"
 
 # FFI dependencies
