@@ -552,9 +552,8 @@ mod web_client_ffi_tests {
         let size = std::mem::size_of::<CortexNetworkInfo>();
         assert!(size > 0, "CortexNetworkInfo should have non-zero size");
 
-        // Should have 5 string pointers + 2 integers
-        let expected_min_size =
-            std::mem::size_of::<*const i8>() * 5 + std::mem::size_of::<i32>() * 2;
+        // Should have 5 string pointers (instance_name, network_name, virtual_ipv4, hostname, version)
+        let expected_min_size = std::mem::size_of::<*const i8>() * 5;
         assert!(
             size >= expected_min_size,
             "CortexNetworkInfo should be at least {} bytes, got {}",
