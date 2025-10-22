@@ -24,7 +24,7 @@ export CORTEX_TIMEZONE_OFFSET_HOURS=-5
 ### 2. 代码中使用
 
 ```rust
-use cortex_easytier_web::config;
+use easytier_config_server::config;
 
 // 获取配置的时区
 let timezone = config::get_timezone();
@@ -70,6 +70,9 @@ cargo test config::tests --lib
 # 设置时区为 Asia/Shanghai
 export CORTEX_TIMEZONE_OFFSET_HOURS=8
 
-# 启动应用
-cargo run
+# 启动 config server
+cargo run -p easytier_config_server
+
+# 或者在构建后运行
+./target/release/easytier_config_server
 ```
