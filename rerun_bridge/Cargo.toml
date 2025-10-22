@@ -1,0 +1,49 @@
+[package]
+name = "rerun_bridge"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Rerun SDK FFI bridge for ROS data visualization"
+
+[lib]
+name = "rerun_bridge"
+crate-type = ["cdylib", "staticlib", "rlib"]
+
+[dependencies]
+# Rerun SDK (minimal features to avoid wasm-bindgen conflict)
+rerun = { version = "0.26", default-features = false, features = ["sdk"] }
+
+# Rerun internal libraries for RRD encoding
+re_log_encoding = "0.26"
+re_log_types = "0.26"
+re_build_info = "0.26"
+re_data_loader = "0.26"
+re_mcap = "0.26"
+re_chunk = "0.26"
+
+# Serialization
+serde.workspace = true
+serde_json.workspace = true
+
+# Error handling
+thiserror.workspace = true
+anyhow.workspace = true
+
+# FFI utilities
+libc.workspace = true
+once_cell.workspace = true
+
+# Logging (use easytier_common for unified logging)
+easytier_common = { path = "../easytier_common" }
+tracing.workspace = true
+
+# Async (for potential streaming)
+tokio.workspace = true
+
+# Image decoding for CompressedImage support
+image = { version = "0.25", default-features = false, features = ["jpeg", "png"] }
+
+[build-dependencies]
+cbindgen = "0.29"
+
