@@ -251,6 +251,10 @@ fn encoder_process_mcap_chunk_internal(
         message_count += 1;
     }
 
+    // Note: The encoder writes directly to SharedBufferWriter via Write trait
+    // Data is immediately available in the buffer after append() - no explicit flush needed
+    // Message boundaries are maintained by the encoder's internal state
+
     // Get the current buffer state
     // Use len() first for efficiency - no need to clone the entire buffer just to check length
     let current_position = encoder_state.buffer.len();
@@ -263,7 +267,7 @@ fn encoder_process_mcap_chunk_internal(
         encoder_state.last_position = current_position;
 
         crate::debug!(
-            "Encoded {} MCAP messages → {} new RRD bytes (total buffer: {} bytes)",
+            "📦 Encoded {} MCAP messages → {} new RRD bytes (total buffer: {} bytes)",
             message_count,
             new_bytes.len(),
             current_position
@@ -329,17 +333,67 @@ pub extern "C" fn rerun_encoder_get_initial_chunk(
     0
 }
 
+/// Finalize encoder and get final chunk (call before destroy)
+/// This extracts any remaining data written by encoder.finish()
+#[no_mangle]
+#[allow(clippy::not_unsafe_ptr_arg_deref)]
+pub extern "C" fn rerun_encoder_finalize(
+    handle: *mut RerunStreamingEncoder,
+    out_data: *mut *mut u8,
+    out_len: *mut usize,
+) -> i32 {
+    if handle.is_null() || out_data.is_null() || out_len.is_null() {
+        set_error_msg("Null pointer passed to rerun_encoder_finalize");
+        return -1;
+    }
+
+    let encoder = unsafe { &mut *handle };
+
+    // Finalize the encoder (writes end marker if needed)
+    if let Err(e) = encoder.encoder.finish() {
+        set_error_msg(&format!("Failed to finalize encoder: {}", e));
+        return -1;
+    }
+
+    // Extract any final bytes written by finish()
+    let current_position = encoder.buffer.len();
+    if current_position > encoder.last_position {
+        let encoder_bytes = encoder.buffer.get_bytes();
+        let final_bytes = &encoder_bytes[encoder.last_position..current_position];
+        let final_chunk = final_bytes.to_vec();
+        let len = final_chunk.len();
+
+        if len > 0 {
+            crate::info!("📋 Finalized encoder: {} final bytes (end marker)", len);
+            let ptr = final_chunk.as_ptr() as *mut u8;
+            std::mem::forget(final_chunk);
+            encoder.last_position = current_position;
+
+            unsafe {
+                *out_data = ptr;
+                *out_len = len;
+            }
+            return 0;
+        }
+    }
+
+    // No final bytes
+    unsafe {
+        *out_data = ptr::null_mut();
+        *out_len = 0;
+    }
+    0
+}
+
 /// Destroy streaming encoder
 #[no_mangle]
 #[allow(clippy::not_unsafe_ptr_arg_deref)]
 pub extern "C" fn rerun_encoder_destroy(handle: *mut RerunStreamingEncoder) {
     if !handle.is_null() {
         unsafe {
-            let mut encoder = Box::from_raw(handle);
-            // Finalize the encoder
-            if let Err(e) = encoder.encoder.finish() {
-                crate::warn!("Failed to finalize encoder: {}", e);
-            }
+            let _encoder = Box::from_raw(handle);
+            // Encoder is dropped here (finish() should have been called via finalize)
+            crate::debug!("🗑️ Destroyed encoder handle");
         }
     }
 }
@@ -392,6 +446,42 @@ mod tests {
                 use crate::rerun_bridge_free_rrd_data;
                 rerun_bridge_free_rrd_data(out_data, out_len);
             }
+        }
+
+        rerun_encoder_destroy(handle);
+    }
+
+    #[test]
+    fn test_encoder_finalize() {
+        let app_id = CString::new("test_finalize").unwrap();
+        let handle = rerun_encoder_create(app_id.as_ptr());
+        assert!(!handle.is_null());
+
+        // Get initial chunk
+        let mut out_data: *mut u8 = ptr::null_mut();
+        let mut out_len: usize = 0;
+        let result = rerun_encoder_get_initial_chunk(handle, &mut out_data, &mut out_len);
+        assert_eq!(result, 0);
+        if !out_data.is_null() && out_len > 0 {
+            rerun_bridge_free_rrd_data(out_data, out_len);
+        }
+
+        // Finalize encoder (should succeed even with no data)
+        let mut final_data: *mut u8 = ptr::null_mut();
+        let mut final_len: usize = 0;
+        let result = rerun_encoder_finalize(handle, &mut final_data, &mut final_len);
+        assert_eq!(result, 0, "Finalize should succeed");
+
+        // Check if we got final bytes
+        if final_len > 0 {
+            println!("📋 Final chunk size: {} bytes", final_len);
+            assert!(
+                !final_data.is_null(),
+                "Final data pointer should not be null"
+            );
+            rerun_bridge_free_rrd_data(final_data, final_len);
+        } else {
+            println!("📋 No final chunk generated (encoder may not produce end marker for empty streams)");
         }
 
         rerun_encoder_destroy(handle);

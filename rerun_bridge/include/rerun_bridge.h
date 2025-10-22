@@ -49,6 +49,14 @@ int32_t rerun_encoder_get_initial_chunk(struct RerunStreamingEncoder *handle,
                                         uintptr_t *out_len);
 
 /**
+ * Finalize encoder and get final chunk (call before destroy)
+ * This extracts any remaining data written by encoder.finish()
+ */
+int32_t rerun_encoder_finalize(struct RerunStreamingEncoder *handle,
+                               uint8_t **out_data,
+                               uintptr_t *out_len);
+
+/**
  * Destroy streaming encoder
  */
 void rerun_encoder_destroy(struct RerunStreamingEncoder *handle);
