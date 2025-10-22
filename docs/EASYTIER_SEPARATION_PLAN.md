@@ -2,7 +2,7 @@
 
 ## Executive Summary
 
-This document outlines the plan to separate the monolithic `easytier_bridge` crate into 4 focused crates, along with necessary database schema changes and integration updates for both `cortex_agent` and `cortex_server`.
+This document outlines the plan to separate the monolithic `cortex_bridge` crate into 4 focused crates, along with necessary database schema changes and integration updates for both `cortex_agent` and `cortex_server`.
 
 **Current Problem**: 
 - Monolithic crate mixing device client, config server, and network gateway functionality
@@ -59,7 +59,7 @@ This document outlines the plan to separate the monolithic `easytier_bridge` cra
 
 ### **1.1 Crate: `easytier_common`**
 
-**Location**: `cortex_server/easytier_bridge/easytier_common/`
+**Location**: `cortex_server/cortex_bridge/easytier_common/`
 
 **Purpose**: Shared utilities and types
 
@@ -105,7 +105,7 @@ pub extern "C" fn free_c_char(s: *mut c_char);
 
 ### **1.2 Crate: `easytier_device_client`**
 
-**Location**: `cortex_server/easytier_bridge/easytier_device_client/`
+**Location**: `cortex_server/cortex_bridge/easytier_device_client/`
 
 **Purpose**: Device-side web client for connecting to config server
 
@@ -188,7 +188,7 @@ int cortex_get_web_client_network_info(
 
 ### **1.3 Crate: `easytier_config_server`**
 
-**Location**: `cortex_server/easytier_bridge/easytier_config_server/`
+**Location**: `cortex_server/cortex_bridge/easytier_config_server/`
 
 **Purpose**: Server-side device connection manager and config distributor
 
@@ -317,7 +317,7 @@ bool network_config_service_update_network_state(
 
 ### **1.4 Crate: `easytier_network_gateway`**
 
-**Location**: `cortex_server/easytier_bridge/easytier_network_gateway/`
+**Location**: `cortex_server/cortex_bridge/easytier_network_gateway/`
 
 **Purpose**: Server-side EasyTier core wrapper (server acts as VPN gateway)
 
@@ -727,7 +727,7 @@ impl Related<super::organizations::Entity> for Entity {
 # OLD: Single web client call
 from ctypes import CDLL, c_char_p
 
-lib = CDLL("./network/lib/libeasytier_bridge.so")
+lib = CDLL("./network/lib/libcortex_bridge.so")
 
 # Start web client
 config_server_url = "tcp://server.com:XXXXX/org-token"
@@ -817,8 +817,8 @@ class EasyTierClient:
 ```go
 package easytier
 
-// #cgo LDFLAGS: -L${SRCDIR}/../../easytier_bridge/easytier_network_gateway/target/debug -leasytier_network_gateway
-// #include "../../easytier_bridge/easytier_network_gateway/include/easytier_network_gateway.h"
+// #cgo LDFLAGS: -L${SRCDIR}/../../cortex_bridge/easytier_network_gateway/target/debug -leasytier_network_gateway
+// #include "../../cortex_bridge/easytier_network_gateway/include/easytier_network_gateway.h"
 import "C"
 
 type GatewayService struct {
@@ -893,8 +893,8 @@ func (g *GatewayService) Stop() error {
 ```go
 package easytier
 
-// #cgo LDFLAGS: -L${SRCDIR}/../../easytier_bridge/easytier_config_server/target/debug -leasytier_config_server
-// #include "../../easytier_bridge/easytier_config_server/include/easytier_config_server.h"
+// #cgo LDFLAGS: -L${SRCDIR}/../../cortex_bridge/easytier_config_server/target/debug -leasytier_config_server
+// #include "../../cortex_bridge/easytier_config_server/include/easytier_config_server.h"
 import "C"
 
 type ConfigServerService struct {
@@ -1107,7 +1107,7 @@ func (s *EasyTierService) Start() error {
 ### **4.1 Final Directory Layout**
 
 ```
-cortex_server/easytier_bridge/
+cortex_server/cortex_bridge/
 ├── easytier_common/
 │   ├── Cargo.toml
 │   ├── build.rs
@@ -1294,7 +1294,7 @@ ls -la */include/*.h
 ```bash
 # In cortex_agent/
 mkdir -p network/lib
-cp ../cortex_server/easytier_bridge/easytier_device_client/target/release/libeasytier_device_client.so \
+cp ../cortex_server/cortex_bridge/easytier_device_client/target/release/libeasytier_device_client.so \
    network/lib/
 ```
 
@@ -1308,12 +1308,12 @@ cp ../cortex_server/easytier_bridge/easytier_device_client/target/release/libeas
 **CGo Configuration** (`cortex_server/internal/easytier/`):
 ```go
 // gateway_service.go
-// #cgo LDFLAGS: -L${SRCDIR}/../../easytier_bridge/easytier_network_gateway/target/release -leasytier_network_gateway
-// #include "../../easytier_bridge/easytier_network_gateway/include/easytier_network_gateway.h"
+// #cgo LDFLAGS: -L${SRCDIR}/../../cortex_bridge/easytier_network_gateway/target/release -leasytier_network_gateway
+// #include "../../cortex_bridge/easytier_network_gateway/include/easytier_network_gateway.h"
 
 // config_server_service.go
-// #cgo LDFLAGS: -L${SRCDIR}/../../easytier_bridge/easytier_config_server/target/release -leasytier_config_server
-// #include "../../easytier_bridge/easytier_config_server/include/easytier_config_server.h"
+// #cgo LDFLAGS: -L${SRCDIR}/../../cortex_bridge/easytier_config_server/target/release -leasytier_config_server
+// #include "../../cortex_bridge/easytier_config_server/include/easytier_config_server.h"
 ```
 
 ---
@@ -1404,7 +1404,7 @@ cp ../cortex_server/easytier_bridge/easytier_device_client/target/release/libeas
 - [ ] Test end-to-end integration
 
 ### **Phase 6: Cleanup**
-- [ ] Remove old monolithic `easytier_bridge` crate
+- [ ] Remove old monolithic `cortex_bridge` crate
 - [ ] Update documentation
 - [ ] Update CI/CD workflows
 - [ ] Update deployment scripts

@@ -3,7 +3,7 @@
 ## Build Everything
 
 ```bash
-cd /Users/zhexuany/Repo/cortex/cortex_server/easytier_bridge
+cd /Users/zhexuany/Repo/cortex/cortex_server/cortex_bridge
 ./build_all.sh
 ```
 

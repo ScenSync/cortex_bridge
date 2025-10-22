@@ -298,7 +298,7 @@ easytier_common (0 internal deps)
 ### Backward Compatibility
 
 **Breaking Changes**:
-- ❌ Old `libeasytier_bridge.so` not compatible
+- ❌ Old `libcortex_bridge.so` not compatible
 - ❌ FFI function signatures changed
 - ❌ Database schema changed
 
@@ -318,7 +318,7 @@ easytier_common (0 internal deps)
 **Status**: ✅ Example provided, ready to integrate
 
 **Required Changes**:
-- Update library path: `libeasytier_bridge.so` → `libeasytier_device_client.so`
+- Update library path: `libcortex_bridge.so` → `libeasytier_device_client.so`
 - Update function signature: Add `organization_id` parameter
 - Add `machine_id` persistence (UUID stored on device)
 
@@ -418,12 +418,12 @@ easytier_common (0 internal deps)
 ### Before (Monolithic)
 
 ```
-cortex_agent → libeasytier_bridge.so (with all features)
+cortex_agent → libcortex_bridge.so (with all features)
   ├─ Device client ✅ (needed)
   ├─ Server features ❌ (not needed - wasted ~10MB)
   └─ Database code ❌ (not needed)
 
-cortex_server → libeasytier_bridge.so (with all features)
+cortex_server → libcortex_bridge.so (with all features)
   ├─ Device client ❌ (not needed)
   ├─ Server gateway ✅ (needed)
   └─ Config server ✅ (needed)
