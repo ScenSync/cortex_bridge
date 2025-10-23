@@ -23,5 +23,5 @@ async-trait.workspace = true
 tracing.workspace = true
 
 [build-dependencies]
-cbindgen = "0.26"
+cbindgen = "0.29"
 

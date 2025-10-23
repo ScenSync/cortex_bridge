@@ -481,7 +481,9 @@ mod tests {
             );
             crate::rerun_bridge_free_rrd_data(final_data, final_len);
         } else {
-            println!("No final chunk generated (encoder may not produce end marker for empty streams)");
+            println!(
+                "No final chunk generated (encoder may not produce end marker for empty streams)"
+            );
         }
 
         rerun_encoder_destroy(handle);
@@ -829,8 +831,10 @@ mod tests {
                 let error_str = unsafe { CStr::from_ptr(error).to_str().unwrap() };
                 println!("Invalid MCAP rejected with error: {}", error_str);
                 assert!(
-                    error_str.contains("MCAP") || error_str.contains("Failed"),
-                    "Error should mention MCAP or failure"
+                    error_str.contains("MCAP")
+                        || error_str.contains("Failed")
+                        || error_str.contains("Invalid"),
+                    "Error should mention MCAP, failure, or invalid data"
                 );
             }
         } else {

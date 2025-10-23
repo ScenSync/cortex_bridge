@@ -580,7 +580,7 @@ impl ClientManager {
         let location = if let Some(db) = &*geoip_db {
             crate::trace!("[GEOIP] Performing GeoIP lookup for IP: {}", ip);
             match db.lookup::<geoip2::City>(ip) {
-                Ok(city) => {
+                Ok(Some(city)) => {
                     let country = city
                         .country
                         .and_then(|c| c.names)
@@ -616,6 +616,14 @@ impl ClientManager {
                     crate::debug!("[GEOIP] Successfully resolved location for {}: country={}, city={:?}, region={:?}", 
                                   ip, country, city_name, region);
                     location
+                }
+                Ok(None) => {
+                    crate::debug!("[GEOIP] GeoIP lookup returned no data for {}", ip);
+                    Location {
+                        country: "未知".to_string(),
+                        city: None,
+                        region: None,
+                    }
                 }
                 Err(err) => {
                     crate::debug!("[GEOIP] GeoIP lookup failed for {}: {}", ip, err);

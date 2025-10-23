@@ -48,5 +48,5 @@ easytier_device_client = { path = "../easytier_device_client" }
 easytier_network_gateway = { path = "../easytier_network_gateway" }
 
 [build-dependencies]
-cbindgen = "0.26"
+cbindgen = "0.29"
 

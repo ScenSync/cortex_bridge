@@ -12,37 +12,47 @@ resolver = "2"
 # EasyTier integration - 核心依赖 (使用 GitHub 依赖)
 easytier = { git = "https://github.com/EasyTier/EasyTier", tag = "v2.4.2" }
 
-# Core async runtime
-tokio = { version = "1.0", features = ["full"] }
-async-trait = "0.1"
+# Core async runtime - 优化特性以加快编译速度
+# 只启用需要的特性，避免 "full" 特性带来的额外编译时间
+tokio = { version = "1.44", features = [
+    "rt-multi-thread",  # 多线程运行时
+    "macros",           # async/await 宏
+    "sync",             # 同步原语 (channels, mutexes)
+    "time",             # 时间工具
+    "net",              # 网络 I/O
+    "io-util",          # I/O 工具
+    "fs",               # 文件系统 I/O
+    "signal",           # 信号处理
+] }
+async-trait = "0.1.83"
 
 # Serialization
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
+serde = { version = "1.0.215", features = ["derive"] }
+serde_json = "1.0.133"
 
 # Utilities
-uuid = { version = "1.0", features = ["v4"] }
-once_cell = "1.19"
-dashmap = "5.5"
+uuid = { version = "1.11", features = ["v4", "fast-rng"] }
+once_cell = "1.21"
+dashmap = "6.1"
 url = "2.5"
-tracing = "0.1"
-tracing-subscriber = { version = "0.3", features = ["env-filter", "time", "local-time"] }
-tracing-appender = "0.2"
-chrono = { version = "0.4", features = ["serde"] }
-anyhow = "1.0"
-thiserror = "1.0"
-gethostname = "0.4.3"
+tracing = "0.1.41"
+tracing-subscriber = { version = "0.3.20", features = ["env-filter", "time", "local-time"] }
+tracing-appender = "0.2.3"
+chrono = { version = "0.4.39", features = ["serde"]}
+anyhow = "1.0.94"
+thiserror = "2.0.17"
+gethostname = "1.1.0"
 
 # Server-specific dependencies
-maxminddb = "0.24"
+maxminddb = "0.26.0"
 urlencoding = "2.1"
 
-# Database dependencies
-sea-orm = { version = "1.1", features = ["sqlx-mysql", "runtime-tokio-rustls", "macros"] }
+# Database dependencies - 优化特性
+sea-orm = { version = "1.1", features = ["sqlx-mysql", "runtime-tokio-rustls", "macros"]}
 sea-orm-migration = "1.1"
 
 # FFI dependencies
-libc = "0.2"
+libc = "0.2.168"
 
 [workspace.package]
 version = "0.2.0"
@@ -51,29 +61,51 @@ authors = ["Cortex Team"]
 license = "MIT"
 
 # ============================================================================
-# 编译优化配置 - 针对构建速度和二进制大小优化
+# Dependency patches - 用于本地开发或版本覆盖
+# ============================================================================
+# [patch.crates-io]
+# 如果需要本地调试或使用特定版本的依赖，可以在这里添加
+# 例如：
+# tokio = { path = "../tokio/tokio" }
+# sea-orm = { git = "https://github.com/SeaQL/sea-orm", branch = "master" }
+
+# [patch.'https://github.com/EasyTier/EasyTier']
+# easytier = { path = "../EasyTier/easytier" }  # 本地开发使用
+
+# ============================================================================
+# 编译优化配置 - 针对构建速度和二进制大小优化 (2025.10 优化版)
 # ============================================================================
 
 [profile.dev]
-opt-level = 1              # 基本优化，加快增量构建
+opt-level = 0              # 不优化项目代码，最快增量编译
 incremental = true         # 启用增量编译
 codegen-units = 256        # 最大并行度，加快首次编译
 debug = 1                  # 减少调试信息大小，加快链接速度
 split-debuginfo = "unpacked" # 分离调试信息，加快链接（仅 Linux/macOS）
+overflow-checks = false    # 禁用溢出检查，提升开发构建速度
+lto = false                # dev 模式禁用 LTO
 
 # 为 dev 模式下的依赖开启优化，提升运行速度但不影响项目代码编译速度
 [profile.dev.package."*"]
 opt-level = 2
 debug = 0
+codegen-units = 16
 
-# 为特定大型依赖开启更多优化
+# 为特定大型依赖开启更多优化以加快运行时性能
 [profile.dev.package.rerun]
-opt-level = 2
+opt-level = 3
+codegen-units = 1
 [profile.dev.package.easytier]
-opt-level = 2
+opt-level = 3
+codegen-units = 1
 [profile.dev.package.tokio]
-opt-level = 2
+opt-level = 3
+codegen-units = 1
 [profile.dev.package.sea-orm]
+opt-level = 2
+[profile.dev.package.sqlx]
+opt-level = 2
+[profile.dev.package.image]
 opt-level = 2
 
 [profile.release]
@@ -83,6 +115,7 @@ codegen-units = 1          # 单个 codegen unit 获得最佳优化
 panic = "abort"            # 减少二进制大小
 strip = true               # 自动 strip 符号
 debug = false              # 不包含调试信息
+incremental = false        # release 禁用增量编译以获得更好优化
 
 # Release with debug info（用于性能分析）
 [profile.release-with-debug]
@@ -96,15 +129,18 @@ inherits = "release"
 lto = false                # 禁用 LTO 大幅加快构建
 codegen-units = 16         # 并行编译
 opt-level = 2              # 略微降低优化等级
+incremental = true         # 启用增量编译
 
 # 针对测试的优化配置
 [profile.test]
-opt-level = 1
+opt-level = 0              # 不优化测试代码，加快测试编译
 incremental = true
 codegen-units = 256
 debug = 1
+overflow-checks = true     # 测试时保留溢出检查
 
 # 为测试依赖开启优化
 [profile.test.package."*"]
 opt-level = 2
 debug = 0
+codegen-units = 16

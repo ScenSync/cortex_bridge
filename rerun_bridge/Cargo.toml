@@ -41,8 +41,8 @@ tracing.workspace = true
 # Async (for potential streaming)
 tokio.workspace = true
 
-# Image decoding for CompressedImage support
-image = { version = "0.25", default-features = false, features = ["jpeg", "png"] }
+# Image decoding for CompressedImage support - 优化特性以减少编译时间
+image = { version = "0.25", default-features = false, features = ["jpeg", "png", "rayon"] }
 
 [build-dependencies]
 cbindgen = "0.29"
