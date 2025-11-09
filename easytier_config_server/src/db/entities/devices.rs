@@ -79,9 +79,6 @@ pub struct Model {
 
     pub device_type: DeviceType,
 
-    #[sea_orm(column_type = "Text", nullable)]
-    pub model: Option<String>,
-
     #[sea_orm(default_value = "pending")]
     pub status: DeviceStatus,
 
