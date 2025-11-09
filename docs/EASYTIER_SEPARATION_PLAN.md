@@ -509,9 +509,9 @@ CREATE TABLE devices (
     name VARCHAR(100) NOT NULL,
     serial_number VARCHAR(100) NOT NULL UNIQUE,
     device_type ENUM('robot', 'edge') NOT NULL,
-    model VARCHAR(100),
     status ENUM('pending', 'rejected', 'online', 'offline', 'busy', 'maintenance', 'disabled') NOT NULL DEFAULT 'pending',
     organization_id CHAR(36),
+    -- Note: model field removed - computed from robot_type.brand + robot_type.model
     scenario_id INT UNSIGNED,
     last_heartbeat TIMESTAMP,
     robot_type_id CHAR(36),
