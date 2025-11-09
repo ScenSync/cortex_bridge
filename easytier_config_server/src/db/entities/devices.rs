@@ -85,9 +85,6 @@ pub struct Model {
     #[sea_orm(default_value = "pending")]
     pub status: DeviceStatus,
 
-    #[sea_orm(column_type = "Json", nullable)]
-    pub capabilities: Option<serde_json::Value>,
-
     #[sea_orm(column_type = "Char(Some(36))", nullable)]
     pub organization_id: Option<String>,
 
