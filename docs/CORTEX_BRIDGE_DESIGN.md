@@ -511,7 +511,6 @@ CREATE TABLE devices (
     device_type ENUM('robot', 'edge') NOT NULL,
     model VARCHAR(100),
     status ENUM('pending', 'rejected', 'online', 'offline', 'busy', 'maintenance', 'disabled') NOT NULL DEFAULT 'pending',
-    capabilities JSON,
     organization_id CHAR(36),
     scenario_id INT UNSIGNED,
     last_heartbeat TIMESTAMP,
@@ -657,9 +656,6 @@ pub struct Model {
     
     #[sea_orm(default_value = "pending")]
     pub status: DeviceStatus,
-    
-    #[sea_orm(column_type = "Json", nullable)]
-    pub capabilities: Option<serde_json::Value>,
     
     #[sea_orm(column_type = "Char(Some(36))", nullable)]
     pub organization_id: Option<String>,
