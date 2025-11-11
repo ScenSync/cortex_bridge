@@ -18,7 +18,7 @@ use easytier::{
     },
 };
 use maxminddb::geoip2;
-use tokio::task::JoinSet;
+use tokio::task::JoinHandle;
 
 use crate::db::Database;
 
@@ -113,7 +113,8 @@ fn load_geoip_db(geoip_db: Option<String>) -> Option<maxminddb::Reader<Vec<u8>>>
 
 #[derive(Debug)]
 pub struct ClientManager {
-    tasks: JoinSet<()>,
+    background_tasks: Vec<JoinHandle<()>>,
+    listener_tasks: Vec<JoinHandle<()>>,
     listeners_cnt: Arc<AtomicU32>,
     client_sessions: Arc<DashMap<url::Url, Arc<Session>>>,
     storage: Storage,
@@ -184,11 +185,14 @@ impl ClientManager {
 
         let client_sessions = Arc::new(DashMap::new());
         let sessions: Arc<DashMap<url::Url, Arc<Session>>> = client_sessions.clone();
-        let mut tasks = JoinSet::new();
+        let mut background_tasks = Vec::new();
 
-        // Cleanup task for inactive sessions
-        crate::debug!("[CLIENT_MANAGER] Starting cleanup task for inactive sessions");
-        tasks.spawn(async move {
+        // Create storage first (needed for both manager and background tasks)
+        let storage = Storage::new(database);
+        let storage_weak = storage.weak_ref();
+
+        // Cleanup task for inactive sessions (runs every 15 seconds)
+        let cleanup_task = tokio::spawn(async move {
             loop {
                 tokio::time::sleep(std::time::Duration::from_secs(15)).await;
                 let initial_count = sessions.len();
@@ -204,29 +208,36 @@ impl ClientManager {
                 }
             }
         });
+        background_tasks.push(cleanup_task);
 
         // Device timeout task - mark devices as offline if no heartbeat for 60 seconds
-        let storage_weak = Storage::new(database.clone()).weak_ref();
-        tasks.spawn(async move {
+        let timeout_task = tokio::spawn(async move {
             loop {
-                tokio::time::sleep(std::time::Duration::from_secs(60)).await;
-
+                // Check devices immediately on first iteration, then every 60 seconds
                 if let Ok(storage) = Storage::try_from(storage_weak.clone()) {
-                    if let Err(e) = Self::mark_offline_devices(&storage).await {
+                    if let Err(e) = ClientManager::mark_offline_devices(&storage).await {
                         crate::error!("[CLIENT_MANAGER] Failed to mark offline devices: {:?}", e);
                     }
+                } else {
+                    crate::debug!("[CLIENT_MANAGER] Storage weak reference no longer valid, stopping timeout task");
+                    break;
                 }
+
+                // Wait 60 seconds before next check
+                tokio::time::sleep(std::time::Duration::from_secs(60)).await;
             }
         });
+        background_tasks.push(timeout_task);
 
         // Use provided path or auto-detect from configuration
         let geoip_path = geoip_db.or_else(crate::config::get_geoip_db_path);
 
         let manager = ClientManager {
-            tasks,
+            background_tasks,
+            listener_tasks: Vec::new(),
             listeners_cnt: Arc::new(AtomicU32::new(0)),
             client_sessions,
-            storage: Storage::new(database),
+            storage,
             geoip_db: Arc::new(load_geoip_db(geoip_path)),
         };
 
@@ -280,7 +291,7 @@ impl ClientManager {
         let listeners_cnt = self.listeners_cnt.clone();
         let geoip_db = self.geoip_db.clone();
 
-        self.tasks.spawn(async move {
+        let listener_task = tokio::spawn(async move {
             crate::debug!(
                 "[CLIENT_MANAGER] Listener {} task started, waiting for connections",
                 listener_id
@@ -289,7 +300,7 @@ impl ClientManager {
             while let Ok(tunnel) = listener.accept().await {
                 let info = tunnel.info().unwrap();
                 let client_url: url::Url = info.remote_addr.unwrap().into();
-                let location = Self::lookup_location(&client_url, geoip_db.clone());
+                let location = ClientManager::lookup_location(&client_url, geoip_db.clone());
 
                 crate::info!(
                     "[CLIENT_MANAGER] New client connected from {} (listener {})",
@@ -312,6 +323,7 @@ impl ClientManager {
             crate::info!("[CLIENT_MANAGER] Listener {} task terminated", listener_id);
         });
 
+        self.listener_tasks.push(listener_task);
         Ok(())
     }
 
@@ -525,20 +537,24 @@ impl ClientManager {
 
     /// Shutdown the client manager and cleanup resources
     pub async fn shutdown(&mut self) {
-        crate::info!("[CLIENT_MANAGER] Shutting down ClientManager...");
-
         let active_sessions = self.client_sessions.len();
         let active_listeners = self.listeners_cnt.load(Ordering::Relaxed);
 
         crate::info!(
-            "[CLIENT_MANAGER] Shutdown initiated - {} active sessions, {} active listeners",
+            "[CLIENT_MANAGER] Shutting down - {} sessions, {} listeners",
             active_sessions,
             active_listeners
         );
 
-        self.tasks.shutdown().await;
+        // Abort all background and listener tasks
+        for task in self.background_tasks.drain(..) {
+            task.abort();
+        }
+        for task in self.listener_tasks.drain(..) {
+            task.abort();
+        }
 
-        crate::info!("[CLIENT_MANAGER] ClientManager shutdown completed");
+        crate::info!("[CLIENT_MANAGER] Shutdown completed");
     }
 
     /// Lookup geographic location for client IP
