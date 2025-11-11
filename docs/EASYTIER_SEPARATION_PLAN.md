@@ -114,7 +114,7 @@ pub extern "C" fn free_c_char(s: *mut c_char);
 **Dependencies**:
 ```toml
 [dependencies]
-easytier = { git = "https://github.com/EasyTier/EasyTier", tag = "v2.4.2" }
+easytier = { git = "https://github.com/EasyTier/EasyTier", tag = "v2.4.5" }
 easytier_common = { path = "../easytier_common" }
 
 tokio = { version = "1.0", features = ["full"] }
@@ -197,7 +197,7 @@ int cortex_get_web_client_network_info(
 **Dependencies**:
 ```toml
 [dependencies]
-easytier = { git = "https://github.com/EasyTier/EasyTier", tag = "v2.4.2" }
+easytier = { git = "https://github.com/EasyTier/EasyTier", tag = "v2.4.5" }
 easytier_common = { path = "../easytier_common" }
 
 tokio = { version = "1.0", features = ["full"] }
@@ -326,7 +326,7 @@ bool network_config_service_update_network_state(
 **Dependencies**:
 ```toml
 [dependencies]
-easytier = { git = "https://github.com/EasyTier/EasyTier", tag = "v2.4.2" }
+easytier = { git = "https://github.com/EasyTier/EasyTier", tag = "v2.4.5" }
 easytier_common = { path = "../easytier_common" }
 
 tokio = { version = "1.0", features = ["full"] }
@@ -1188,7 +1188,7 @@ members = [
 resolver = "2"
 
 [workspace.dependencies]
-easytier = { git = "https://github.com/EasyTier/EasyTier", tag = "v2.4.2" }
+easytier = { git = "https://github.com/EasyTier/EasyTier", tag = "v2.4.5" }
 tokio = { version = "1.0", features = ["full"] }
 anyhow = "1.0"
 thiserror = "1.0"

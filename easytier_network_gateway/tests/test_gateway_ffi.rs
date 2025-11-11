@@ -46,7 +46,6 @@ mod gateway_ffi_tests {
             ipv6: ptr::null(),
             listener_urls: unsafe { (*listeners_ptr).as_ptr() },
             listener_urls_count: 2,
-            rpc_port: 15888,
             peer_urls: ptr::null(),
             peer_urls_count: 0,
             default_protocol: ptr::null(),
@@ -97,7 +96,6 @@ mod gateway_ffi_tests {
             ipv6: ptr::null(),
             listener_urls: unsafe { (*listeners_ptr).as_ptr() },
             listener_urls_count: 1,
-            rpc_port: 15888,
             peer_urls: ptr::null(),
             peer_urls_count: 0,
             default_protocol: ptr::null(),
@@ -145,7 +143,6 @@ mod gateway_ffi_tests {
             ipv6: ptr::null(),
             listener_urls: unsafe { (*listeners_ptr).as_ptr() },
             listener_urls_count: 1,
-            rpc_port: 15888,
             peer_urls: ptr::null(),
             peer_urls_count: 0,
             default_protocol: ptr::null(),
@@ -193,7 +190,6 @@ mod gateway_ffi_tests {
             ipv6: ptr::null(),
             listener_urls: unsafe { (*listeners_ptr).as_ptr() },
             listener_urls_count: 1,
-            rpc_port: 15888,
             peer_urls: ptr::null(),
             peer_urls_count: 0,
             default_protocol: ptr::null(),
@@ -237,7 +233,6 @@ mod gateway_ffi_tests {
             ipv6: ptr::null(),
             listener_urls: ptr::null(),
             listener_urls_count: 0,
-            rpc_port: 15888,
             peer_urls: ptr::null(),
             peer_urls_count: 0,
             default_protocol: ptr::null(),
@@ -283,7 +278,6 @@ mod gateway_ffi_tests {
             ipv6: ptr::null(),
             listener_urls: unsafe { (*listeners_ptr).as_ptr() },
             listener_urls_count: 1,
-            rpc_port: 15888,
             peer_urls: ptr::null(),
             peer_urls_count: 0,
             default_protocol: ptr::null(),
@@ -333,7 +327,6 @@ mod gateway_ffi_tests {
             ipv6: ptr::null(),
             listener_urls: unsafe { (*listeners_ptr).as_ptr() },
             listener_urls_count: 1,
-            rpc_port: 15888,
             peer_urls: ptr::null(),
             peer_urls_count: 0,
             default_protocol: ptr::null(),
@@ -383,7 +376,6 @@ mod gateway_ffi_tests {
             ipv6: ptr::null(),
             listener_urls: unsafe { (*listeners_ptr).as_ptr() },
             listener_urls_count: 1,
-            rpc_port: 15888,
             peer_urls: ptr::null(),
             peer_urls_count: 0,
             default_protocol: ptr::null(),
@@ -441,7 +433,6 @@ mod gateway_ffi_tests {
             ipv6: invalid_ipv6.as_ptr(),
             listener_urls: unsafe { (*listeners_ptr).as_ptr() },
             listener_urls_count: 1,
-            rpc_port: 15888,
             peer_urls: ptr::null(),
             peer_urls_count: 0,
             default_protocol: ptr::null(),
@@ -516,7 +507,6 @@ mod gateway_ffi_tests {
             ipv6: ptr::null(),
             listener_urls: unsafe { (*listeners_ptr).as_ptr() },
             listener_urls_count: 1,
-            rpc_port: 15888,
             peer_urls: unsafe { (*peers_ptr).as_ptr() },
             peer_urls_count: 2,
             default_protocol: ptr::null(),
@@ -550,64 +540,8 @@ mod gateway_ffi_tests {
         }
     }
 
-    #[test]
-    fn test_start_gateway_invalid_rpc_port() {
-        // Test with various RPC port values
-        // Note: Port 0 is actually valid (OS assigns any port), so we test other invalid values
-        let port_cases: Vec<(i32, &str)> = vec![
-            (-1, "Negative port"),
-            (65536, "Port > 65535"),
-            (99999, "Very large port"),
-        ];
-
-        for (rpc_port, description) in port_cases {
-            let instance_name = CString::new(format!("test-rpc-port-{}", rpc_port.abs())).unwrap();
-            let network_name = CString::new("test-network").unwrap();
-            let network_secret = CString::new("test-secret").unwrap();
-            let listener = CString::new("tcp://0.0.0.0:11017").unwrap();
-
-            let listeners = vec![listener.as_ptr()];
-            let listeners_box = listeners.into_boxed_slice();
-            let listeners_ptr = Box::into_raw(listeners_box);
-
-            let config = EasyTierCoreConfig {
-                instance_name: instance_name.as_ptr(),
-                network_name: network_name.as_ptr(),
-                network_secret: network_secret.as_ptr(),
-                dhcp: 1,
-                ipv4: ptr::null(),
-                ipv6: ptr::null(),
-                listener_urls: unsafe { (*listeners_ptr).as_ptr() },
-                listener_urls_count: 1,
-                rpc_port,
-                peer_urls: ptr::null(),
-                peer_urls_count: 0,
-                default_protocol: ptr::null(),
-                dev_name: ptr::null(),
-                enable_encryption: 1,
-                enable_ipv6: 0,
-                mtu: 1380,
-                latency_first: 0,
-                enable_exit_node: 0,
-                no_tun: 0,
-                use_smoltcp: 0,
-                foreign_network_whitelist: ptr::null(),
-                disable_p2p: 0,
-                relay_all_peer_rpc: 0,
-                disable_udp_hole_punching: 0,
-                private_mode: 1,
-            };
-
-            unsafe {
-                let result = start_easytier_core(&config);
-                // Invalid ports should fail
-                assert_eq!(result, -1, "Should fail with {}: {}", description, rpc_port);
-
-                // Clean up
-                let _ = Box::from_raw(listeners_ptr);
-            }
-        }
-    }
+    // Note: test_start_gateway_invalid_rpc_port removed - RPC port is now configured globally
+    // via --rpc-portal flag or ET_RPC_PORTAL env var in EasyTier v2.4.5
 
     #[test]
     fn test_stop_gateway_null_instance_name() {
@@ -703,7 +637,6 @@ mod gateway_ffi_tests {
                 ipv6: ptr::null(),
                 listener_urls: unsafe { (*listeners_ptr).as_ptr() },
                 listener_urls_count: 1,
-                rpc_port: 15888,
                 peer_urls: ptr::null(),
                 peer_urls_count: 0,
                 default_protocol: ptr::null(),
@@ -773,7 +706,6 @@ mod gateway_ffi_tests {
                 ipv6: ptr::null(),
                 listener_urls: unsafe { (*listeners_ptr).as_ptr() },
                 listener_urls_count: 1,
-                rpc_port: 15888,
                 peer_urls: ptr::null(),
                 peer_urls_count: 0,
                 default_protocol: ptr::null(),
@@ -841,7 +773,6 @@ mod gateway_ffi_tests {
                 ipv6: ptr::null(),
                 listener_urls: unsafe { (*listeners_ptr).as_ptr() },
                 listener_urls_count: 1,
-                rpc_port: 15888,
                 peer_urls: ptr::null(),
                 peer_urls_count: 0,
                 default_protocol: ptr::null(),
@@ -902,7 +833,6 @@ mod gateway_ffi_tests {
                 ipv6: ptr::null(),
                 listener_urls: unsafe { (*listeners_ptr).as_ptr() },
                 listener_urls_count: 1,
-                rpc_port: 15888,
                 peer_urls: ptr::null(),
                 peer_urls_count: 0,
                 default_protocol: ptr::null(),
@@ -987,7 +917,6 @@ mod builder_api_tests {
             ipv6: ptr::null(),
             listener_urls: unsafe { (*listeners_ptr).as_ptr() },
             listener_urls_count: 3,
-            rpc_port: 15888,
             peer_urls: ptr::null(),
             peer_urls_count: 0,
             default_protocol: ptr::null(),
@@ -1053,7 +982,6 @@ mod builder_api_tests {
                 ipv6: ptr::null(),
                 listener_urls: unsafe { (*listeners_ptr).as_ptr() },
                 listener_urls_count: 1,
-                rpc_port: 15888,
                 peer_urls: ptr::null(),
                 peer_urls_count: 0,
                 default_protocol: ptr::null(),
@@ -1118,7 +1046,6 @@ mod gateway_lifecycle_tests {
             ipv6: ptr::null(),
             listener_urls: unsafe { (*listeners_ptr).as_ptr() },
             listener_urls_count: 1,
-            rpc_port: 15888,
             peer_urls: ptr::null(),
             peer_urls_count: 0,
             default_protocol: ptr::null(),
@@ -1173,7 +1100,6 @@ mod gateway_lifecycle_tests {
             ipv6: ptr::null(),
             listener_urls: unsafe { (*listeners_ptr).as_ptr() },
             listener_urls_count: 1,
-            rpc_port: 15888,
             peer_urls: ptr::null(),
             peer_urls_count: 0,
             default_protocol: ptr::null(),

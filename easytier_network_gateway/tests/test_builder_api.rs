@@ -32,7 +32,6 @@ mod builder_api_validation_tests {
             ipv6: ptr::null(),
             listener_urls: unsafe { (*listeners_ptr).as_ptr() },
             listener_urls_count: 1,
-            rpc_port: 15888,
             peer_urls: ptr::null(),
             peer_urls_count: 0,
             default_protocol: ptr::null(),
@@ -92,7 +91,6 @@ mod builder_api_validation_tests {
                 ipv6: ptr::null(),
                 listener_urls: unsafe { (*listeners_ptr).as_ptr() },
                 listener_urls_count: 1,
-                rpc_port: 15888,
                 peer_urls: ptr::null(),
                 peer_urls_count: 0,
                 default_protocol: ptr::null(),
@@ -152,7 +150,6 @@ mod builder_api_validation_tests {
             ipv6: ptr::null(),
             listener_urls: unsafe { (*listeners_ptr).as_ptr() },
             listener_urls_count: 1,
-            rpc_port: 15888,
             peer_urls: ptr::null(),
             peer_urls_count: 0,
             default_protocol: ptr::null(),
@@ -211,7 +208,6 @@ mod builder_api_validation_tests {
             ipv6: ptr::null(),
             listener_urls: unsafe { (*listeners_ptr).as_ptr() },
             listener_urls_count: 2,
-            rpc_port: 15888,
             peer_urls: ptr::null(),
             peer_urls_count: 0,
             default_protocol: ptr::null(),
@@ -273,7 +269,6 @@ mod builder_api_validation_tests {
             ipv6: ptr::null(),
             listener_urls: unsafe { (*listeners_ptr).as_ptr() },
             listener_urls_count: 1,
-            rpc_port: 15888,
             peer_urls: unsafe { (*peers_ptr).as_ptr() },
             peer_urls_count: 2,
             default_protocol: ptr::null(),
@@ -327,7 +322,6 @@ mod builder_api_validation_tests {
             ipv6: ptr::null(),
             listener_urls: unsafe { (*listeners_ptr).as_ptr() },
             listener_urls_count: 1,
-            rpc_port: 15888,
             peer_urls: ptr::null(),
             peer_urls_count: 0,
             default_protocol: ptr::null(),
@@ -362,71 +356,8 @@ mod builder_api_validation_tests {
         }
     }
 
-    #[test]
-    fn test_builder_api_rpc_portal() {
-        // Test RPC portal configuration
-        let rpc_ports = [
-            (15888, "Default RPC port"),
-            (15000, "Custom RPC port 1"),
-            (16000, "Custom RPC port 2"),
-        ];
-
-        for (i, (rpc_port, description)) in rpc_ports.iter().enumerate() {
-            let instance_name = CString::new(format!("builder-rpc-{}", i)).unwrap();
-            let network_name = CString::new("test-network").unwrap();
-            let network_secret = CString::new("test-secret").unwrap();
-            let listener = CString::new(format!("tcp://0.0.0.0:120{}", 70 + i)).unwrap();
-
-            let listeners = vec![listener.as_ptr()];
-            let listeners_box = listeners.into_boxed_slice();
-            let listeners_ptr = Box::into_raw(listeners_box);
-
-            let config = EasyTierCoreConfig {
-                instance_name: instance_name.as_ptr(),
-                network_name: network_name.as_ptr(),
-                network_secret: network_secret.as_ptr(),
-                dhcp: 1,
-                ipv4: ptr::null(),
-                ipv6: ptr::null(),
-                listener_urls: unsafe { (*listeners_ptr).as_ptr() },
-                listener_urls_count: 1,
-                rpc_port: *rpc_port,
-                peer_urls: ptr::null(),
-                peer_urls_count: 0,
-                default_protocol: ptr::null(),
-                dev_name: ptr::null(),
-                enable_encryption: 1,
-                enable_ipv6: 0,
-                mtu: 1380,
-                latency_first: 0,
-                enable_exit_node: 0,
-                no_tun: 0,
-                use_smoltcp: 0,
-                foreign_network_whitelist: ptr::null(),
-                disable_p2p: 0,
-                relay_all_peer_rpc: 0,
-                disable_udp_hole_punching: 0,
-                private_mode: 1,
-            };
-
-            unsafe {
-                let result = start_easytier_core(&config);
-                assert!(
-                    result == 0 || result == -1,
-                    "Builder API should handle {}: {}",
-                    description,
-                    rpc_port
-                );
-
-                if result == 0 {
-                    let _ = stop_easytier_core(instance_name.as_ptr());
-                }
-
-                // Clean up
-                let _ = Box::from_raw(listeners_ptr);
-            }
-        }
-    }
+    // Note: test_builder_api_rpc_portal removed - RPC portal is now configured globally
+    // via --rpc-portal flag or ET_RPC_PORTAL env var in EasyTier v2.4.5
 
     #[test]
     fn test_builder_api_ipv4_and_ipv6_combination() {
@@ -451,7 +382,6 @@ mod builder_api_validation_tests {
             ipv6: ipv6.as_ptr(),
             listener_urls: unsafe { (*listeners_ptr).as_ptr() },
             listener_urls_count: 1,
-            rpc_port: 15888,
             peer_urls: ptr::null(),
             peer_urls_count: 0,
             default_protocol: ptr::null(),
@@ -508,7 +438,6 @@ mod builder_api_validation_tests {
             ipv6: ptr::null(),
             listener_urls: unsafe { (*listeners_ptr).as_ptr() },
             listener_urls_count: 1,
-            rpc_port: 15888,
             peer_urls: ptr::null(),
             peer_urls_count: 0,
             default_protocol: ptr::null(),
@@ -577,7 +506,6 @@ mod configuration_parsing_tests {
                 ipv6: ptr::null(),
                 listener_urls: unsafe { (*listeners_ptr).as_ptr() },
                 listener_urls_count: 1,
-                rpc_port: 15888,
                 peer_urls: ptr::null(),
                 peer_urls_count: 0,
                 default_protocol: ptr::null(),
@@ -643,7 +571,6 @@ mod configuration_parsing_tests {
                 ipv6: ptr::null(),
                 listener_urls: unsafe { (*listeners_ptr).as_ptr() },
                 listener_urls_count: 1,
-                rpc_port: 15888,
                 peer_urls: ptr::null(),
                 peer_urls_count: 0,
                 default_protocol: ptr::null(),
@@ -712,7 +639,6 @@ mod configuration_parsing_tests {
                 ipv6: ptr::null(),
                 listener_urls: unsafe { (*listeners_ptr).as_ptr() },
                 listener_urls_count: 1,
-                rpc_port: 15888,
                 peer_urls: ptr::null(),
                 peer_urls_count: 0,
                 default_protocol: ptr::null(),
@@ -783,7 +709,6 @@ mod configuration_parsing_tests {
                 ipv6: ptr::null(),
                 listener_urls: unsafe { (*listeners_ptr).as_ptr() },
                 listener_urls_count: 1,
-                rpc_port: 15888,
                 peer_urls: unsafe { (*peers_ptr).as_ptr() },
                 peer_urls_count: 1,
                 default_protocol: ptr::null(),
@@ -847,7 +772,6 @@ mod configuration_parsing_tests {
             ipv6: ptr::null(),
             listener_urls: unsafe { (*listeners_ptr).as_ptr() },
             listener_urls_count: 1,
-            rpc_port: 15888,
             peer_urls: unsafe { (*peers_ptr).as_ptr() },
             peer_urls_count: 1,
             default_protocol: ptr::null(),
@@ -943,7 +867,6 @@ mod memory_safety_tests {
             ipv6: ptr::null(),
             listener_urls: ptr::null(),
             listener_urls_count: 0,
-            rpc_port: 15888,
             peer_urls: ptr::null(),
             peer_urls_count: 0,
             default_protocol: ptr::null(),
