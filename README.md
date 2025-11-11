@@ -387,6 +387,26 @@ Cortex Team
 
 ## Changelog
 
+### v0.2.1 (2025-11-10) - EasyTier v2.4.5 Update
+
+**EasyTier Upgrade**: v2.4.2 → v2.4.5
+
+**Breaking Changes from EasyTier v2.4.5**:
+- Centralized RPC service: Single global RPC server manages all network instances ([PR #1427](https://github.com/EasyTier/EasyTier/pull/1427))
+- `rpc_port` field removed from `EasyTierCoreConfig` FFI struct
+- RPC portal must now be configured globally via `--rpc-portal` CLI flag or `ET_RPC_PORTAL` environment variable
+
+**Benefits**:
+- Simplified configuration - no per-instance RPC port management
+- Reduced resource usage - single RPC service instead of N services
+- Better multi-instance support - unified management API
+- Bug fixes for multi-network port conflicts
+
+**Migration Notes**:
+- Remove `rpc_port` parameter from FFI calls to `start_easytier_core()`
+- Configure RPC portal globally before starting any network instances
+- See updated FFI headers in `easytier_network_gateway/include/`
+
 ### v0.2.0 (2025-10-15) - Multi-Crate Architecture
 
 **Breaking Changes**:

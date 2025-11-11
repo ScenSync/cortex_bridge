@@ -8,6 +8,7 @@ use easytier::launcher::{ConfigSource, NetworkInstance};
 #[tokio::test]
 async fn test_private_mode_launcher() {
     // Create a minimal private mode configuration
+    // Note: RPC portal is now configured globally via --rpc-portal flag or ET_RPC_PORTAL env var
     let toml_config = r#"
         instance_name = "test-private"
         hostname = "test-host"
@@ -22,9 +23,6 @@ async fn test_private_mode_launcher() {
         private_mode = true
         enable_encryption = true
         no_tun = true
-        
-        [rpc]
-        rpc_portal = "127.0.0.1:15888"
     "#;
 
     // Parse the configuration
@@ -60,9 +58,6 @@ fn test_toml_config_generation() {
         private_mode = true
         enable_encryption = true
         no_tun = true
-        
-        [rpc]
-        rpc_portal = "127.0.0.1:15889"
     "#;
 
     // Verify the configuration can be parsed

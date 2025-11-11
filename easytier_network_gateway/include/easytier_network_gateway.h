@@ -13,7 +13,6 @@ typedef struct EasyTierCoreConfig {
   const char *ipv6;
   const char *const *listener_urls;
   int listener_urls_count;
-  int rpc_port;
   const char *network_name;
   const char *network_secret;
   const char *const *peer_urls;

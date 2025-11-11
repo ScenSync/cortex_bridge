@@ -28,7 +28,6 @@ pub struct EasyTierCoreConfig {
     // Listeners and networking
     pub listener_urls: *const *const c_char,
     pub listener_urls_count: c_int,
-    pub rpc_port: c_int,
 
     // Network identity
     pub network_name: *const c_char,
@@ -240,18 +239,8 @@ pub unsafe extern "C" fn start_easytier_core(core_config: *const EasyTierCoreCon
         }
     }
 
-    // Set RPC portal
-    match format!("0.0.0.0:{}", config.rpc_port).parse() {
-        Ok(addr) => {
-            cfg.set_rpc_portal(addr);
-            info!("Set RPC portal: 0.0.0.0:{}", config.rpc_port);
-        }
-        Err(e) => {
-            error!("Invalid RPC port {}: {}", config.rpc_port, e);
-            set_error_msg(&format!("invalid RPC port: {}", e));
-            return -1;
-        }
-    }
+    // Note: RPC portal is now configured globally via --rpc-portal flag or ET_RPC_PORTAL env var
+    // Per-instance RPC configuration has been removed in EasyTier v2.4.5
 
     // Set flags using builder pattern
     let mut flags = cfg.get_flags();

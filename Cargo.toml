@@ -10,7 +10,7 @@ resolver = "2"
 
 [workspace.dependencies]
 # EasyTier integration - 核心依赖 (使用 GitHub 依赖)
-easytier = { git = "https://github.com/EasyTier/EasyTier", tag = "v2.4.2" }
+easytier = { git = "https://github.com/EasyTier/EasyTier", tag = "v2.4.5" }
 
 # Core async runtime - 优化特性以加快编译速度
 # 只启用需要的特性，避免 "full" 特性带来的额外编译时间
