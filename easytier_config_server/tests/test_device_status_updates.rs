@@ -317,23 +317,20 @@ async fn test_device_timeout_marking_offline() {
         device2.insert(db.orm()).await.unwrap();
     }
 
-    // Create ClientManager with shorter timeout for testing
-    let client_mgr = ClientManager::new(&get_test_database_url(test_name), None)
+    // Create ClientManager - background task runs immediately and checks devices
+    let _client_mgr = ClientManager::new(&get_test_database_url(test_name), None)
         .await
         .unwrap();
 
-    // Manually trigger the timeout check (normally runs every 60 seconds)
-    let _storage = client_mgr.storage().clone();
+    // Wait for background task to complete its first check
+    tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
 
-    // Wait a moment and then check status
-    tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
-
-    // Test that only the old device was marked offline
+    // Verify device status after background task ran
     {
         use easytier_config_server::db::entities::devices;
         use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
 
-        // Check device 1 (recent heartbeat) - should still be approved
+        // Check device 1 (recent heartbeat) - should still be online
         let device1 = devices::Entity::find()
             .filter(devices::Column::Id.eq(device_id_1.to_string()))
             .one(db.orm())
@@ -341,9 +338,13 @@ async fn test_device_timeout_marking_offline() {
             .unwrap()
             .unwrap();
 
-        assert_eq!(device1.status, devices::DeviceStatus::Online);
+        assert_eq!(
+            device1.status,
+            devices::DeviceStatus::Online,
+            "Device with recent heartbeat should stay online"
+        );
 
-        // Check device 2 (old heartbeat) - should be marked offline
+        // Check device 2 (old heartbeat) - should be marked offline by background task
         let device2 = devices::Entity::find()
             .filter(devices::Column::Id.eq(device_id_2.to_string()))
             .one(db.orm())
@@ -351,10 +352,11 @@ async fn test_device_timeout_marking_offline() {
             .unwrap()
             .unwrap();
 
-        // Note: The timeout task runs every 60 seconds, so we need to manually trigger it
-        // For this test, we'll just verify the setup is correct
-        assert_eq!(device2.status, devices::DeviceStatus::Online); // Before timeout
-        assert!(device2.last_heartbeat.unwrap() < Utc::now() - chrono::Duration::seconds(60));
+        assert_eq!(
+            device2.status,
+            devices::DeviceStatus::Offline,
+            "Device with stale heartbeat should be marked offline by background task"
+        );
     }
 
     cleanup_test_database(&db).await.unwrap();
