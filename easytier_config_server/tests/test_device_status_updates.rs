@@ -318,7 +318,7 @@ async fn test_device_timeout_marking_offline() {
     }
 
     // Create ClientManager - background task runs immediately and checks devices
-    let client_mgr = ClientManager::new(&get_test_database_url(test_name), None)
+    let _client_mgr = ClientManager::new(&get_test_database_url(test_name), None)
         .await
         .unwrap();
 
