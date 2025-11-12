@@ -12,7 +12,6 @@ use serial_test::serial;
 mod common;
 use common::*;
 
-use chrono::Utc;
 use easytier::proto::web::HeartbeatRequest;
 use easytier_config_server::client_manager::{session::Session, ClientManager};
 
