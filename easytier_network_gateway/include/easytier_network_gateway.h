@@ -63,3 +63,17 @@ int stop_easytier_core(const char *instance_name);
  * and `status_json_out` is a valid mutable pointer.
  */
 int get_easytier_core_status(const char *instance_name, char **status_json_out);
+
+/**
+ * Get the local virtual IPv4 address for a gateway instance
+ * Returns 0 on success, -1 on error
+ *
+ * The virtual IP is returned as a CIDR string (e.g., "10.126.126.1/24")
+ * The caller is responsible for freeing the returned string using `free_string()`.
+ *
+ * # Safety
+ *
+ * The caller must ensure that `instance_name` is a valid pointer to a null-terminated C string
+ * and `ipv4_out` is a valid mutable pointer.
+ */
+int get_easytier_virtual_ipv4(const char *instance_name, char **ipv4_out);
