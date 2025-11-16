@@ -302,10 +302,10 @@ pub unsafe extern "C" fn start_easytier_core(core_config: *const EasyTierCoreCon
     let start_result = runtime.block_on(async {
         // Create GlobalCtx within runtime context
         let global_ctx = Arc::new(GlobalCtx::new(cfg.clone()));
-        
+
         // Create NetworkInstance within runtime context
         let mut instance = NetworkInstance::new(cfg, ConfigSource::FFI);
-        
+
         match instance.start() {
             Ok(_event_subscriber) => {
                 info!("Network instance started successfully");
@@ -493,9 +493,12 @@ pub unsafe extern "C" fn get_easytier_virtual_ipv4(
         };
 
         // Clone what we need before dropping the lock
-        (gateway_instance.global_ctx.clone(), gateway_instance._runtime.handle().clone())
+        (
+            gateway_instance.global_ctx.clone(),
+            gateway_instance._runtime.handle().clone(),
+        )
     }; // Lock is dropped here
-    
+
     // Execute within the Tokio runtime context (lock is now released)
     let ipv4_string = runtime_handle.block_on(async {
         let virtual_ip = global_ctx.get_ipv4();

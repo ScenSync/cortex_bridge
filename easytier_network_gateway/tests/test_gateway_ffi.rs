@@ -1203,76 +1203,74 @@ mod virtual_ip_tests {
         run_in_runtime(|| {
             // Test getting virtual IP from a running instance
             let instance_name = CString::new("test-virtual-ip").unwrap();
-        let network_name = CString::new("test-network").unwrap();
-        let network_secret = CString::new("test-secret").unwrap();
-        let listener = CString::new("tcp://0.0.0.0:11090").unwrap();
+            let network_name = CString::new("test-network").unwrap();
+            let network_secret = CString::new("test-secret").unwrap();
+            let listener = CString::new("tcp://0.0.0.0:11090").unwrap();
 
-        let listeners = vec![listener.as_ptr()];
-        let listeners_box = listeners.into_boxed_slice();
-        let listeners_ptr = Box::into_raw(listeners_box);
+            let listeners = vec![listener.as_ptr()];
+            let listeners_box = listeners.into_boxed_slice();
+            let listeners_ptr = Box::into_raw(listeners_box);
 
-        let config = EasyTierCoreConfig {
-            instance_name: instance_name.as_ptr(),
-            network_name: network_name.as_ptr(),
-            network_secret: network_secret.as_ptr(),
-            dhcp: 1,
-            ipv4: ptr::null(),
-            ipv6: ptr::null(),
-            listener_urls: unsafe { (*listeners_ptr).as_ptr() },
-            listener_urls_count: 1,
-            peer_urls: ptr::null(),
-            peer_urls_count: 0,
-            default_protocol: ptr::null(),
-            dev_name: ptr::null(),
-            enable_encryption: 1,
-            enable_ipv6: 0,
-            mtu: 1380,
-            latency_first: 0,
-            enable_exit_node: 0,
-            no_tun: 0,
-            use_smoltcp: 0,
-            foreign_network_whitelist: ptr::null(),
-            disable_p2p: 0,
-            relay_all_peer_rpc: 0,
-            disable_udp_hole_punching: 0,
-            private_mode: 1,
-        };
+            let config = EasyTierCoreConfig {
+                instance_name: instance_name.as_ptr(),
+                network_name: network_name.as_ptr(),
+                network_secret: network_secret.as_ptr(),
+                dhcp: 1,
+                ipv4: ptr::null(),
+                ipv6: ptr::null(),
+                listener_urls: unsafe { (*listeners_ptr).as_ptr() },
+                listener_urls_count: 1,
+                peer_urls: ptr::null(),
+                peer_urls_count: 0,
+                default_protocol: ptr::null(),
+                dev_name: ptr::null(),
+                enable_encryption: 1,
+                enable_ipv6: 0,
+                mtu: 1380,
+                latency_first: 0,
+                enable_exit_node: 0,
+                no_tun: 0,
+                use_smoltcp: 0,
+                foreign_network_whitelist: ptr::null(),
+                disable_p2p: 0,
+                relay_all_peer_rpc: 0,
+                disable_udp_hole_punching: 0,
+                private_mode: 1,
+            };
 
-        unsafe {
-            // Start gateway
-            let start_result = start_easytier_core(&config);
+            unsafe {
+                // Start gateway
+                let start_result = start_easytier_core(&config);
 
-            if start_result == 0 {
-                // Wait a bit for the instance to initialize (virtual IP may not be set immediately)
-                std::thread::sleep(std::time::Duration::from_millis(500));
+                if start_result == 0 {
+                    // Wait a bit for the instance to initialize (virtual IP may not be set immediately)
+                    std::thread::sleep(std::time::Duration::from_millis(500));
 
-                let mut ipv4_out: *mut i8 = ptr::null_mut();
-                let result = get_easytier_virtual_ipv4(instance_name.as_ptr(), &mut ipv4_out);
+                    let mut ipv4_out: *mut i8 = ptr::null_mut();
+                    let result = get_easytier_virtual_ipv4(instance_name.as_ptr(), &mut ipv4_out);
 
-                // Result can be 0 (success) or -1 (if virtual IP not yet assigned)
-                // If successful, verify the string format and free it
-                if result == 0 && !ipv4_out.is_null() {
-                    let ipv4_str = std::ffi::CStr::from_ptr(ipv4_out)
-                        .to_str()
-                        .unwrap_or("");
-                    
-                    // Virtual IP should be in CIDR format (e.g., "10.126.126.1/24") or empty
-                    assert!(
-                        ipv4_str.is_empty() || ipv4_str.contains('/'),
-                        "Virtual IP should be in CIDR format or empty, got: {}",
-                        ipv4_str
-                    );
+                    // Result can be 0 (success) or -1 (if virtual IP not yet assigned)
+                    // If successful, verify the string format and free it
+                    if result == 0 && !ipv4_out.is_null() {
+                        let ipv4_str = std::ffi::CStr::from_ptr(ipv4_out).to_str().unwrap_or("");
 
-                    // Free the returned string
-                    easytier_common::easytier_common_free_string(ipv4_out);
+                        // Virtual IP should be in CIDR format (e.g., "10.126.126.1/24") or empty
+                        assert!(
+                            ipv4_str.is_empty() || ipv4_str.contains('/'),
+                            "Virtual IP should be in CIDR format or empty, got: {}",
+                            ipv4_str
+                        );
+
+                        // Free the returned string
+                        easytier_common::easytier_common_free_string(ipv4_out);
+                    }
+
+                    // Stop the instance
+                    let _ = stop_easytier_core(instance_name.as_ptr());
                 }
 
-                // Stop the instance
-                let _ = stop_easytier_core(instance_name.as_ptr());
-            }
-
-            // Clean up
-            let _ = Box::from_raw(listeners_ptr);
+                // Clean up
+                let _ = Box::from_raw(listeners_ptr);
             }
         });
     }
@@ -1282,76 +1280,74 @@ mod virtual_ip_tests {
         run_in_runtime(|| {
             // Test getting virtual IP when manual IPv4 is configured
             let instance_name = CString::new("test-manual-ipv4").unwrap();
-        let network_name = CString::new("test-network").unwrap();
-        let network_secret = CString::new("test-secret").unwrap();
-        let listener = CString::new("tcp://0.0.0.0:11091").unwrap();
-        let manual_ipv4 = CString::new("10.144.144.1").unwrap();
+            let network_name = CString::new("test-network").unwrap();
+            let network_secret = CString::new("test-secret").unwrap();
+            let listener = CString::new("tcp://0.0.0.0:11091").unwrap();
+            let manual_ipv4 = CString::new("10.144.144.1").unwrap();
 
-        let listeners = vec![listener.as_ptr()];
-        let listeners_box = listeners.into_boxed_slice();
-        let listeners_ptr = Box::into_raw(listeners_box);
+            let listeners = vec![listener.as_ptr()];
+            let listeners_box = listeners.into_boxed_slice();
+            let listeners_ptr = Box::into_raw(listeners_box);
 
-        let config = EasyTierCoreConfig {
-            instance_name: instance_name.as_ptr(),
-            network_name: network_name.as_ptr(),
-            network_secret: network_secret.as_ptr(),
-            dhcp: 0, // Disable DHCP, use manual IP
-            ipv4: manual_ipv4.as_ptr(),
-            ipv6: ptr::null(),
-            listener_urls: unsafe { (*listeners_ptr).as_ptr() },
-            listener_urls_count: 1,
-            peer_urls: ptr::null(),
-            peer_urls_count: 0,
-            default_protocol: ptr::null(),
-            dev_name: ptr::null(),
-            enable_encryption: 1,
-            enable_ipv6: 0,
-            mtu: 1380,
-            latency_first: 0,
-            enable_exit_node: 0,
-            no_tun: 0,
-            use_smoltcp: 0,
-            foreign_network_whitelist: ptr::null(),
-            disable_p2p: 0,
-            relay_all_peer_rpc: 0,
-            disable_udp_hole_punching: 0,
-            private_mode: 1,
-        };
+            let config = EasyTierCoreConfig {
+                instance_name: instance_name.as_ptr(),
+                network_name: network_name.as_ptr(),
+                network_secret: network_secret.as_ptr(),
+                dhcp: 0, // Disable DHCP, use manual IP
+                ipv4: manual_ipv4.as_ptr(),
+                ipv6: ptr::null(),
+                listener_urls: unsafe { (*listeners_ptr).as_ptr() },
+                listener_urls_count: 1,
+                peer_urls: ptr::null(),
+                peer_urls_count: 0,
+                default_protocol: ptr::null(),
+                dev_name: ptr::null(),
+                enable_encryption: 1,
+                enable_ipv6: 0,
+                mtu: 1380,
+                latency_first: 0,
+                enable_exit_node: 0,
+                no_tun: 0,
+                use_smoltcp: 0,
+                foreign_network_whitelist: ptr::null(),
+                disable_p2p: 0,
+                relay_all_peer_rpc: 0,
+                disable_udp_hole_punching: 0,
+                private_mode: 1,
+            };
 
-        unsafe {
-            // Start gateway
-            let start_result = start_easytier_core(&config);
+            unsafe {
+                // Start gateway
+                let start_result = start_easytier_core(&config);
 
-            if start_result == 0 {
-                // Wait a bit for the instance to initialize
-                std::thread::sleep(std::time::Duration::from_millis(500));
+                if start_result == 0 {
+                    // Wait a bit for the instance to initialize
+                    std::thread::sleep(std::time::Duration::from_millis(500));
 
-                let mut ipv4_out: *mut i8 = ptr::null_mut();
-                let result = get_easytier_virtual_ipv4(instance_name.as_ptr(), &mut ipv4_out);
+                    let mut ipv4_out: *mut i8 = ptr::null_mut();
+                    let result = get_easytier_virtual_ipv4(instance_name.as_ptr(), &mut ipv4_out);
 
-                // Result can be 0 (success) or -1 (if virtual IP not yet assigned)
-                if result == 0 && !ipv4_out.is_null() {
-                    let ipv4_str = std::ffi::CStr::from_ptr(ipv4_out)
-                        .to_str()
-                        .unwrap_or("");
-                    
-                    // Virtual IP should be in CIDR format
-                    assert!(
-                        ipv4_str.is_empty() || ipv4_str.contains('/'),
-                        "Virtual IP should be in CIDR format or empty, got: {}",
-                        ipv4_str
-                    );
+                    // Result can be 0 (success) or -1 (if virtual IP not yet assigned)
+                    if result == 0 && !ipv4_out.is_null() {
+                        let ipv4_str = std::ffi::CStr::from_ptr(ipv4_out).to_str().unwrap_or("");
 
-                    // Free the returned string
-                    easytier_common::easytier_common_free_string(ipv4_out);
+                        // Virtual IP should be in CIDR format
+                        assert!(
+                            ipv4_str.is_empty() || ipv4_str.contains('/'),
+                            "Virtual IP should be in CIDR format or empty, got: {}",
+                            ipv4_str
+                        );
+
+                        // Free the returned string
+                        easytier_common::easytier_common_free_string(ipv4_out);
+                    }
+
+                    // Stop the instance
+                    let _ = stop_easytier_core(instance_name.as_ptr());
                 }
 
-                // Stop the instance
-                let _ = stop_easytier_core(instance_name.as_ptr());
-            }
-
-            // Clean up
-            let _ = Box::from_raw(listeners_ptr);
+                // Clean up
+                let _ = Box::from_raw(listeners_ptr);
             }
         });
     }
@@ -1361,58 +1357,58 @@ mod virtual_ip_tests {
         run_in_runtime(|| {
             // Test getting virtual IP after instance is stopped
             let instance_name = CString::new("test-ip-after-stop").unwrap();
-        let network_name = CString::new("test-network").unwrap();
-        let network_secret = CString::new("test-secret").unwrap();
-        let listener = CString::new("tcp://0.0.0.0:11092").unwrap();
+            let network_name = CString::new("test-network").unwrap();
+            let network_secret = CString::new("test-secret").unwrap();
+            let listener = CString::new("tcp://0.0.0.0:11092").unwrap();
 
-        let listeners = vec![listener.as_ptr()];
-        let listeners_box = listeners.into_boxed_slice();
-        let listeners_ptr = Box::into_raw(listeners_box);
+            let listeners = vec![listener.as_ptr()];
+            let listeners_box = listeners.into_boxed_slice();
+            let listeners_ptr = Box::into_raw(listeners_box);
 
-        let config = EasyTierCoreConfig {
-            instance_name: instance_name.as_ptr(),
-            network_name: network_name.as_ptr(),
-            network_secret: network_secret.as_ptr(),
-            dhcp: 1,
-            ipv4: ptr::null(),
-            ipv6: ptr::null(),
-            listener_urls: unsafe { (*listeners_ptr).as_ptr() },
-            listener_urls_count: 1,
-            peer_urls: ptr::null(),
-            peer_urls_count: 0,
-            default_protocol: ptr::null(),
-            dev_name: ptr::null(),
-            enable_encryption: 1,
-            enable_ipv6: 0,
-            mtu: 1380,
-            latency_first: 0,
-            enable_exit_node: 0,
-            no_tun: 0,
-            use_smoltcp: 0,
-            foreign_network_whitelist: ptr::null(),
-            disable_p2p: 0,
-            relay_all_peer_rpc: 0,
-            disable_udp_hole_punching: 0,
-            private_mode: 1,
-        };
+            let config = EasyTierCoreConfig {
+                instance_name: instance_name.as_ptr(),
+                network_name: network_name.as_ptr(),
+                network_secret: network_secret.as_ptr(),
+                dhcp: 1,
+                ipv4: ptr::null(),
+                ipv6: ptr::null(),
+                listener_urls: unsafe { (*listeners_ptr).as_ptr() },
+                listener_urls_count: 1,
+                peer_urls: ptr::null(),
+                peer_urls_count: 0,
+                default_protocol: ptr::null(),
+                dev_name: ptr::null(),
+                enable_encryption: 1,
+                enable_ipv6: 0,
+                mtu: 1380,
+                latency_first: 0,
+                enable_exit_node: 0,
+                no_tun: 0,
+                use_smoltcp: 0,
+                foreign_network_whitelist: ptr::null(),
+                disable_p2p: 0,
+                relay_all_peer_rpc: 0,
+                disable_udp_hole_punching: 0,
+                private_mode: 1,
+            };
 
-        unsafe {
-            // Start gateway
-            let start_result = start_easytier_core(&config);
+            unsafe {
+                // Start gateway
+                let start_result = start_easytier_core(&config);
 
-            if start_result == 0 {
-                // Stop the instance first
-                let stop_result = stop_easytier_core(instance_name.as_ptr());
-                assert_eq!(stop_result, 0, "Stop should succeed");
+                if start_result == 0 {
+                    // Stop the instance first
+                    let stop_result = stop_easytier_core(instance_name.as_ptr());
+                    assert_eq!(stop_result, 0, "Stop should succeed");
 
-                // Try to get virtual IP after stop (should fail)
-                let mut ipv4_out: *mut i8 = ptr::null_mut();
-                let result = get_easytier_virtual_ipv4(instance_name.as_ptr(), &mut ipv4_out);
-                assert_eq!(result, -1, "Should fail after instance is stopped");
-            }
+                    // Try to get virtual IP after stop (should fail)
+                    let mut ipv4_out: *mut i8 = ptr::null_mut();
+                    let result = get_easytier_virtual_ipv4(instance_name.as_ptr(), &mut ipv4_out);
+                    assert_eq!(result, -1, "Should fail after instance is stopped");
+                }
 
-            // Clean up
-            let _ = Box::from_raw(listeners_ptr);
+                // Clean up
+                let _ = Box::from_raw(listeners_ptr);
             }
         });
     }
@@ -1422,75 +1418,73 @@ mod virtual_ip_tests {
         run_in_runtime(|| {
             // Test that returned string is properly formatted and can be freed
             let instance_name = CString::new("test-ip-format").unwrap();
-        let network_name = CString::new("test-network").unwrap();
-        let network_secret = CString::new("test-secret").unwrap();
-        let listener = CString::new("tcp://0.0.0.0:11093").unwrap();
+            let network_name = CString::new("test-network").unwrap();
+            let network_secret = CString::new("test-secret").unwrap();
+            let listener = CString::new("tcp://0.0.0.0:11093").unwrap();
 
-        let listeners = vec![listener.as_ptr()];
-        let listeners_box = listeners.into_boxed_slice();
-        let listeners_ptr = Box::into_raw(listeners_box);
+            let listeners = vec![listener.as_ptr()];
+            let listeners_box = listeners.into_boxed_slice();
+            let listeners_ptr = Box::into_raw(listeners_box);
 
-        let config = EasyTierCoreConfig {
-            instance_name: instance_name.as_ptr(),
-            network_name: network_name.as_ptr(),
-            network_secret: network_secret.as_ptr(),
-            dhcp: 1,
-            ipv4: ptr::null(),
-            ipv6: ptr::null(),
-            listener_urls: unsafe { (*listeners_ptr).as_ptr() },
-            listener_urls_count: 1,
-            peer_urls: ptr::null(),
-            peer_urls_count: 0,
-            default_protocol: ptr::null(),
-            dev_name: ptr::null(),
-            enable_encryption: 1,
-            enable_ipv6: 0,
-            mtu: 1380,
-            latency_first: 0,
-            enable_exit_node: 0,
-            no_tun: 0,
-            use_smoltcp: 0,
-            foreign_network_whitelist: ptr::null(),
-            disable_p2p: 0,
-            relay_all_peer_rpc: 0,
-            disable_udp_hole_punching: 0,
-            private_mode: 1,
-        };
+            let config = EasyTierCoreConfig {
+                instance_name: instance_name.as_ptr(),
+                network_name: network_name.as_ptr(),
+                network_secret: network_secret.as_ptr(),
+                dhcp: 1,
+                ipv4: ptr::null(),
+                ipv6: ptr::null(),
+                listener_urls: unsafe { (*listeners_ptr).as_ptr() },
+                listener_urls_count: 1,
+                peer_urls: ptr::null(),
+                peer_urls_count: 0,
+                default_protocol: ptr::null(),
+                dev_name: ptr::null(),
+                enable_encryption: 1,
+                enable_ipv6: 0,
+                mtu: 1380,
+                latency_first: 0,
+                enable_exit_node: 0,
+                no_tun: 0,
+                use_smoltcp: 0,
+                foreign_network_whitelist: ptr::null(),
+                disable_p2p: 0,
+                relay_all_peer_rpc: 0,
+                disable_udp_hole_punching: 0,
+                private_mode: 1,
+            };
 
-        unsafe {
-            // Start gateway
-            let start_result = start_easytier_core(&config);
+            unsafe {
+                // Start gateway
+                let start_result = start_easytier_core(&config);
 
-            if start_result == 0 {
-                // Wait a bit for the instance to initialize
-                std::thread::sleep(std::time::Duration::from_millis(500));
+                if start_result == 0 {
+                    // Wait a bit for the instance to initialize
+                    std::thread::sleep(std::time::Duration::from_millis(500));
 
-                let mut ipv4_out: *mut i8 = ptr::null_mut();
-                let result = get_easytier_virtual_ipv4(instance_name.as_ptr(), &mut ipv4_out);
+                    let mut ipv4_out: *mut i8 = ptr::null_mut();
+                    let result = get_easytier_virtual_ipv4(instance_name.as_ptr(), &mut ipv4_out);
 
-                if result == 0 && !ipv4_out.is_null() {
-                    // Verify we can read the string
-                    let ipv4_str = std::ffi::CStr::from_ptr(ipv4_out)
-                        .to_str()
-                        .unwrap_or("");
-                    
-                    // String should be valid UTF-8 and either empty or in CIDR format
-                    assert!(
-                        ipv4_str.is_empty() || ipv4_str.matches('/').count() == 1,
-                        "Virtual IP should be empty or in CIDR format (IP/prefix), got: {}",
-                        ipv4_str
-                    );
+                    if result == 0 && !ipv4_out.is_null() {
+                        // Verify we can read the string
+                        let ipv4_str = std::ffi::CStr::from_ptr(ipv4_out).to_str().unwrap_or("");
 
-                    // Verify we can free it without crashing
-                    easytier_common::easytier_common_free_string(ipv4_out);
+                        // String should be valid UTF-8 and either empty or in CIDR format
+                        assert!(
+                            ipv4_str.is_empty() || ipv4_str.matches('/').count() == 1,
+                            "Virtual IP should be empty or in CIDR format (IP/prefix), got: {}",
+                            ipv4_str
+                        );
+
+                        // Verify we can free it without crashing
+                        easytier_common::easytier_common_free_string(ipv4_out);
+                    }
+
+                    // Stop the instance
+                    let _ = stop_easytier_core(instance_name.as_ptr());
                 }
 
-                // Stop the instance
-                let _ = stop_easytier_core(instance_name.as_ptr());
-            }
-
-            // Clean up
-            let _ = Box::from_raw(listeners_ptr);
+                // Clean up
+                let _ = Box::from_raw(listeners_ptr);
             }
         });
     }
