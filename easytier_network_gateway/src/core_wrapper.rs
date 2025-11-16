@@ -1,16 +1,26 @@
 //! EasyTier core wrapper using Builder API (improved from original TOML string approach)
 
 use easytier::common::config::{ConfigLoader, NetworkIdentity, PeerConfig, TomlConfigLoader};
+use easytier::common::global_ctx::GlobalCtx;
 use easytier::launcher::{ConfigSource, NetworkInstance};
 use easytier_common::{c_str_to_string, parse_string_array, set_error_msg};
 use once_cell::sync::Lazy;
 use std::collections::HashMap;
 use std::ffi::{c_char, c_int};
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 use tracing::{error, info, warn};
 
+// Structure to store NetworkInstance, GlobalCtx, and runtime
+struct GatewayInstance {
+    #[allow(dead_code)] // Keep instance alive, accessed via global_ctx
+    instance: NetworkInstance,
+    global_ctx: Arc<GlobalCtx>,
+    #[allow(dead_code)] // Keep runtime alive for async tasks
+    _runtime: tokio::runtime::Runtime,
+}
+
 // Global storage for gateway instances
-static GATEWAY_INSTANCES: Lazy<Mutex<HashMap<String, NetworkInstance>>> =
+static GATEWAY_INSTANCES: Lazy<Mutex<HashMap<String, GatewayInstance>>> =
     Lazy::new(|| Mutex::new(HashMap::new()));
 
 /// C-compatible structure for EasyTier Core configuration
@@ -275,16 +285,51 @@ pub unsafe extern "C" fn start_easytier_core(core_config: *const EasyTierCoreCon
         if config.mtu <= 0 { 1380 } else { config.mtu }
     );
 
-    // Create and start the NetworkInstance
-    let mut instance = NetworkInstance::new(cfg, ConfigSource::FFI);
+    // Create Tokio runtime for async operations
+    // IMPORTANT: Must create runtime BEFORE any GlobalCtx or NetworkInstance
+    let runtime = match tokio::runtime::Runtime::new() {
+        Ok(rt) => rt,
+        Err(e) => {
+            error!("Failed to create tokio runtime: {}", e);
+            set_error_msg(&format!("failed to create tokio runtime: {}", e));
+            return -1;
+        }
+    };
 
-    match instance.start() {
-        Ok(_event_subscriber) => {
-            info!("Network instance started successfully");
+    // Create GlobalCtx and NetworkInstance within the runtime context
+    // CRITICAL: GlobalCtx::new() and NetworkInstance::new() MUST be called within runtime context
+    // because they initialize async components (TokenBucket, etc.) that require Tokio
+    let start_result = runtime.block_on(async {
+        // Create GlobalCtx within runtime context
+        let global_ctx = Arc::new(GlobalCtx::new(cfg.clone()));
+        
+        // Create NetworkInstance within runtime context
+        let mut instance = NetworkInstance::new(cfg, ConfigSource::FFI);
+        
+        match instance.start() {
+            Ok(_event_subscriber) => {
+                info!("Network instance started successfully");
+                Ok((instance, global_ctx))
+            }
+            Err(e) => {
+                error!("Failed to start network instance: {}", e);
+                Err(e)
+            }
+        }
+    });
 
-            // Store the running instance
+    match start_result {
+        Ok((instance, global_ctx)) => {
+            // Store the running instance with GlobalCtx and runtime
             if let Ok(mut instances) = GATEWAY_INSTANCES.lock() {
-                instances.insert(instance_name.clone(), instance);
+                instances.insert(
+                    instance_name.clone(),
+                    GatewayInstance {
+                        instance,
+                        global_ctx,
+                        _runtime: runtime,
+                    },
+                );
                 info!(
                     "Gateway instance '{}' registered successfully",
                     instance_name
@@ -391,6 +436,85 @@ pub unsafe extern "C" fn get_easytier_core_status(
         Err(e) => {
             error!("Failed to serialize status: {}", e);
             set_error_msg("failed to serialize status");
+            -1
+        }
+    }
+}
+
+/// Get the local virtual IPv4 address for a gateway instance
+/// Returns 0 on success, -1 on error
+///
+/// The virtual IP is returned as a CIDR string (e.g., "10.126.126.1/24")
+/// The caller is responsible for freeing the returned string using `free_string()`.
+///
+/// # Safety
+///
+/// The caller must ensure that `instance_name` is a valid pointer to a null-terminated C string
+/// and `ipv4_out` is a valid mutable pointer.
+#[no_mangle]
+pub unsafe extern "C" fn get_easytier_virtual_ipv4(
+    instance_name: *const c_char,
+    ipv4_out: *mut *mut c_char,
+) -> c_int {
+    let name = match c_str_to_string(instance_name) {
+        Ok(name) => name,
+        Err(e) => {
+            error!("Invalid instance_name: {}", e);
+            set_error_msg(&format!("invalid instance_name: {}", e));
+            return -1;
+        }
+    };
+
+    if ipv4_out.is_null() {
+        error!("ipv4_out is null");
+        set_error_msg("ipv4_out is null");
+        return -1;
+    }
+
+    // Extract what we need from the locked section, then release the lock
+    // IMPORTANT: Don't hold the lock across async boundaries to avoid deadlocks
+    let (global_ctx, runtime_handle) = {
+        let instances = match GATEWAY_INSTANCES.lock() {
+            Ok(instances) => instances,
+            Err(e) => {
+                error!("Failed to acquire GATEWAY_INSTANCES lock: {}", e);
+                set_error_msg("failed to acquire lock");
+                return -1;
+            }
+        };
+
+        let gateway_instance = match instances.get(&name) {
+            Some(inst) => inst,
+            None => {
+                warn!("Gateway instance '{}' not found", name);
+                set_error_msg(&format!("instance '{}' not found", name));
+                return -1;
+            }
+        };
+
+        // Clone what we need before dropping the lock
+        (gateway_instance.global_ctx.clone(), gateway_instance._runtime.handle().clone())
+    }; // Lock is dropped here
+    
+    // Execute within the Tokio runtime context (lock is now released)
+    let ipv4_string = runtime_handle.block_on(async {
+        let virtual_ip = global_ctx.get_ipv4();
+        virtual_ip.map(|x| x.to_string()).unwrap_or_default()
+    });
+
+    info!(
+        "Retrieved virtual IP for instance '{}': {}",
+        name, ipv4_string
+    );
+
+    match std::ffi::CString::new(ipv4_string) {
+        Ok(c_str) => {
+            *ipv4_out = c_str.into_raw();
+            0
+        }
+        Err(e) => {
+            error!("Failed to create C string: {}", e);
+            set_error_msg("failed to create C string");
             -1
         }
     }
